@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cali Coast — Unit Delivery Map</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root{
+    --ink:#0F2E3D; --teal:#1FA39A; --teal-dark:#14746E;
+    --sand:#F3ECDD; --sand-deep:#E7DCC3; --paper:#FBF8F1;
+    --c-undelivered:#6B7FA3; --c-unbuilt:#8B93A0; --c-concrete:#D6B32C; --c-finish:#C77A32; --c-delivered:#800080;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;}
+  .cc-display{font-family:'Fraunces',ui-serif,Georgia,serif;}
+
+  header{background:var(--ink);color:var(--paper);padding:18px 20px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;border-bottom:3px solid var(--teal);}
+  .brand{display:flex;align-items:baseline;gap:8px;}
+  .brand .name{font-size:26px;font-weight:700;color:var(--teal);letter-spacing:.3px;}
+  .brand .place{font-size:12px;letter-spacing:3px;color:#9FB4B1;text-transform:uppercase;}
+  .subtitle{font-size:14px;color:#C9D3D1;margin-top:2px;}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;}
+  .stat{background:rgba(255,255,255,.06);border-radius:8px;padding:6px 14px;text-align:center;min-width:76px;}
+  .stat .val{font-size:19px;font-weight:600;}
+  .stat .lbl{font-size:10.5px;color:#9FB4B1;text-transform:uppercase;letter-spacing:1px;}
+
+  .connbar{margin:16px 20px 0;padding:10px 16px;border-radius:10px;background:var(--sand);border:1.5px solid var(--sand-deep);display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .connbar .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--c-unbuilt);}
+  .connbar .txt{font-size:13.5px;color:#5B6470;}
+  .connbar .txt strong{color:var(--ink);}
+  button.btn{background:var(--teal);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;}
+  button.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--sand-deep);font-weight:500;padding:8px 14px;}
+  button.btn:hover{filter:brightness(1.06);}
+
+  .banner{margin:10px 20px 0;padding:9px 14px;border-radius:8px;font-size:13.5px;font-weight:500;display:none;}
+  .banner.error{background:#FBEAE7;color:#B5473C;}
+  .banner.info{background:#E4F3F1;color:var(--teal-dark);}
+
+  .layout{display:flex;gap:16px;padding:20px;flex-wrap:wrap;align-items:flex-start;}
+  .side{width:240px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;}
+  .panel{background:#fff;border-radius:10px;padding:12px 14px;border:1px solid var(--sand-deep);}
+  .panel.accent{border-color:#1FA39A55;}
+  .panel h4{font-size:11.5px;text-transform:uppercase;letter-spacing:1px;color:#8B93A0;font-weight:600;margin:0 0 8px;}
+  .row{display:flex;gap:6px;}
+  input[type=text], select{width:100%;padding:7px 9px;border-radius:6px;border:1px solid var(--sand-deep);font-size:14px;font-family:inherit;}
+  .zoomrow{display:flex;gap:6px;}
+  .zoombtn{width:32px;height:30px;border-radius:6px;border:1px solid var(--sand-deep);background:var(--paper);font-size:16px;cursor:pointer;color:var(--ink);}
+  .zoomval{flex:1;text-align:center;font-size:13px;color:#5B6470;align-self:center;}
+  .legendrow{display:flex;align-items:center;gap:9px;font-size:13px;margin-bottom:7px;color:#3A4048;}
+  .legendrow svg{flex-shrink:0;}
+
+  .mapwrap{flex:1;min-width:300px;height:76vh;overflow:auto;background:#DCEEEC;border-radius:12px;border:1px solid var(--sand-deep);position:relative;}
+  .mapwrap::-webkit-scrollbar{width:10px;height:10px;}
+  .mapwrap::-webkit-scrollbar-thumb{background:#C7BBA0;border-radius:8px;}
+  .mapcontent{position:relative;}
+  .mapcontent img{width:100%;height:100%;display:block;user-select:none;}
+  .marker{position:absolute;cursor:pointer;transition:width .15s ease,height .15s ease,filter .15s ease;z-index:10;overflow:visible;touch-action:none;}
+  .mapcontent.edit-mode .marker{cursor:grab;}
+  .mapcontent.edit-mode .marker:active{cursor:grabbing;}
+  .marker:hover{z-index:50;}
+  .marker.active{z-index:60;animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{filter:drop-shadow(0 0 0px rgba(31,163,154,.9));}50%{filter:drop-shadow(0 0 5px rgba(31,163,154,.9));}}
+
+  footer{padding:4px 20px 22px;font-size:12px;color:#8B93A0;}
+  .notice{max-width:520px;margin:60px auto;background:#fff;border:1px solid var(--sand-deep);border-radius:14px;padding:28px 26px;text-align:center;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand"><span class="name cc-display">Cali Coast</span><span class="place">Ras El Hekma</span></div>
+    <div class="subtitle">Unit delivery map</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="val" id="statTotal">—</div><div class="lbl">Total units</div></div>
+    <div class="stat"><div class="val" id="statDelivered" style="color:var(--c-delivered)">—</div><div class="lbl">Delivered</div></div>
+    <div class="stat"><div class="val" id="statPct" style="color:var(--teal)">—</div><div class="lbl">Complete</div></div>
+  </div>
+</header>
+
+<div class="connbar" id="connbar">
+  <span class="dot" id="connDot"></span>
+  <span class="txt" id="connTxt">Loading…</span>
+  <button class="btn ghost" id="btnRefresh">Refresh now</button>
+</div>
+
+<div class="banner error" id="errBanner"></div>
+
+<div class="notice hidden" id="notConfigured">
+  <h2 class="cc-display">Not configured yet</h2>
+  <p style="color:#5B6470;font-size:14px;line-height:1.6;">This site needs its <code>config.js</code> filled in with a Google Sheet ID and API key before it can show anything. See Setup_Instructions.md.</p>
+</div>
+
+<div class="layout" id="mainApp">
+  <div class="side">
+    <div class="panel">
+      <h4>Find a unit</h4>
+      <div class="row">
+        <input type="text" id="searchInput" placeholder="e.g. 235" inputmode="numeric" />
+        <button class="btn" id="btnGo" style="padding:7px 12px;font-size:13px;">Go</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h4>Phase</h4>
+      <select id="phaseSelect">
+        <option value="ALL">All phases</option>
+      </select>
+      <div id="phaseStatLine" style="font-size:12.5px;color:#5B6470;margin-top:8px;"></div>
+    </div>
+    <div class="panel">
+      <h4>Zoom</h4>
+      <div class="zoomrow">
+        <button class="zoombtn" id="zoomOut">−</button>
+        <div class="zoomval" id="zoomVal">100%</div>
+        <button class="zoombtn" id="zoomIn">+</button>
+      </div>
+      <button class="btn ghost" id="zoomReset" style="width:100%;margin-top:8px;font-size:12.5px;padding:5px 0;">Reset view</button>
+    </div>
+    <div class="panel">
+      <h4>Legend</h4>
+      <div class="legendrow" id="legendUndelivered"></div>
+      <div class="legendrow" id="legendUnbuilt"></div>
+      <div class="legendrow" id="legendConcrete"></div>
+      <div class="legendrow" id="legendFinish"></div>
+      <div class="legendrow" id="legendDelivered"></div>
+    </div>
+    <div class="panel" id="positionsPanel">
+      <h4>Positions</h4>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#3A4048;cursor:pointer;">
+        <input type="checkbox" id="editToggle" style="width:15px;height:15px;" />
+        Edit positions (drag pins)
+      </label>
+      <button class="btn" id="btnSavePositions" disabled style="width:100%;margin-top:9px;opacity:0.5;">Save positions</button>
+      <div id="pendingLine" style="font-size:12px;color:#5B6470;margin-top:6px;"></div>
+    </div>
+    <div class="panel accent hidden" id="unitPanel">
+      <h4 id="unitPanelTitle">Unit</h4>
+      <div style="font-size:13px;line-height:1.6;color:#3A4048;">
+        <div id="unitPhaseLine"></div>
+        <div>Status: <strong id="unitStatusLine"></strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mapwrap" id="mapwrap">
+    <div class="mapcontent" id="mapcontent">
+      <img id="planImg" src="plan.jpg" alt="Cali Coast master plan" draggable="false" />
+    </div>
+  </div>
+</div>
+
+<footer>Phase, Position, and Status are each read live from their own sheet tab — edit any of them in Google Sheets and refresh to see it here. Refreshes automatically every 5 minutes.</footer>
+
+<script src="config.js"></script>
+<script>
+const DEFAULT_UNITS = [[1,0.2341,0.2302,"Phase 1"],[2,0.2355,0.2311,"Phase 1"],[3,0.3194,0.2002,"Phase 1"],[4,0.373,0.2335,"Phase 1"],[5,0.4088,0.2583,"Phase 1"],[6,0.3576,0.254,"Phase 1"],[7,0.3063,0.2497,"Phase 2"],[8,0.2099,0.1774,"Phase 2"],[9,0.4453,0.1647,"Phase 2"],[10,0.2427,0.1728,"Phase 2"],[11,0.4434,0.1986,"Phase 2"],[12,0.3052,0.1638,"Phase 2"],[13,0.3242,0.162,"Undetermined"],[14,0.3422,0.1587,"Undetermined"],[15,0.3582,0.1561,"Undetermined"],[16,0.3714,0.1543,"Undetermined"],[17,0.3858,0.1525,"Undetermined"],[18,0.4022,0.1501,"Undetermined"],[19,0.4165,0.1476,"Undetermined"],[20,0.4305,0.1458,"Undetermined"],[21,0.4444,0.1439,"Undetermined"],[22,0.4585,0.1421,"Undetermined"],[23,0.4714,0.1404,"Undetermined"],[24,0.2972,0.1754,"Undetermined"],[25,0.123,0.2104,"Undetermined"],[26,0.1352,0.208,"Undetermined"],[27,0.1471,0.2068,"Undetermined"],[28,0.159,0.205,"Undetermined"],[29,0.1719,0.2035,"Undetermined"],[30,0.1855,0.2014,"Undetermined"],[31,0.199,0.1993,"Undetermined"],[32,0.2117,0.197,"Undetermined"],[33,0.2241,0.1957,"Undetermined"],[34,0.2368,0.194,"Undetermined"],[35,0.2496,0.1923,"Phase 2"],[36,0.2623,0.1907,"Phase 2"],[37,0.275,0.1889,"Phase 2"],[38,0.307,0.1837,"Phase 2"],[39,0.3203,0.1827,"Phase 2"],[40,0.332,0.1804,"Phase 1"],[41,0.3445,0.179,"Phase 1"],[42,0.3563,0.1773,"Phase 1"],[43,0.3675,0.1755,"Phase 1"],[44,0.1139,0.2273,"Phase 1"],[45,0.1163,0.2354,"Phase 1"],[46,0.4421,0.1647,"Phase 1"],[47,0.1233,0.2565,"Phase 1"],[48,0.1257,0.2675,"Phase 1"],[49,0.1313,0.2654,"Phase 1"],[50,0.1368,0.2633,"Phase 1"],[51,0.1424,0.2613,"Phase 1"],[52,0.1479,0.2592,"Phase 1"],[53,0.1535,0.2571,"Phase 1"],[54,0.159,0.255,"Phase 1"],[55,0.1646,0.2529,"Phase 1"],[56,0.1702,0.2508,"Phase 1"],[57,0.1757,0.2487,"Phase 1"],[58,0.1645,0.2394,"Phase 2"],[59,0.23,0.2277,"Phase 2"],[60,0.2955,0.2159,"Phase 2"],[61,0.361,0.2041,"Phase 2"],[62,0.3096,0.2176,"Phase 2"],[63,0.2581,0.2311,"Phase 2"],[64,0.2067,0.2446,"Phase 2"],[65,0.2085,0.2556,"Phase 2"],[66,0.212,0.2666,"Phase 2"],[67,0.2192,0.2649,"Phase 2"],[68,0.2263,0.2632,"Phase 2"],[69,0.2335,0.2615,"Phase 2"],[70,0.2407,0.2599,"Phase 2"],[71,0.2478,0.2582,"Phase 2"],[72,0.255,0.2565,"Phase 2"],[73,0.2622,0.2548,"Phase 2"],[74,0.2582,0.2413,"Phase 2"],[75,0.2547,0.2301,"Phase 2"],[76,0.2428,0.2208,"Phase 2"],[77,0.2523,0.2165,"Phase 2"],[78,0.2617,0.2123,"Phase 2"],[79,0.2711,0.2081,"Phase 2"],[80,0.28,0.2111,"Phase 2"],[81,0.289,0.2141,"Phase 2"],[82,0.2836,0.2264,"Phase 2"],[83,0.2868,0.2372,"Phase 2"],[84,0.2909,0.2506,"Phase 2"],[85,0.2942,0.2623,"Phase 2"],[86,0.3172,0.2639,"Phase 2"],[87,0.3402,0.2656,"Undetermined"],[88,0.3381,0.2558,"Undetermined"],[89,0.3358,0.2446,"Undetermined"],[90,0.3373,0.2368,"Undetermined"],[91,0.3388,0.2289,"Undetermined"],[93,0.3417,0.2132,"Undetermined"],[94,0.3432,0.2054,"Undetermined"],[95,0.3447,0.1975,"Undetermined"],[96,0.3489,0.2037,"Undetermined"],[98,0.3574,0.2159,"Undetermined"],[99,0.36,0.2268,"Undetermined"],[100,0.3632,0.2404,"Undetermined"],[101,0.3679,0.2516,"Undetermined"],[102,0.3762,0.2493,"Undetermined"],[103,0.3845,0.2471,"Undetermined"],[104,0.3928,0.2449,"Undetermined"],[105,0.4011,0.2426,"Undetermined"],[106,0.4094,0.2404,"Undetermined"],[107,0.4177,0.2382,"Undetermined"],[108,0.4116,0.2277,"Undetermined"],[109,0.4055,0.2173,"Undetermined"],[110,0.3994,0.2068,"Undetermined"],[111,0.4057,0.2003,"Undetermined"],[112,0.412,0.1938,"Undetermined"],[113,0.4229,0.1954,"Undetermined"],[114,0.4337,0.197,"Undetermined"],[115,0.4446,0.1986,"Undetermined"],[116,0.4388,0.2123,"Undetermined"],[117,0.442,0.2236,"Undetermined"],[118,0.4455,0.2342,"Undetermined"],[119,0.4511,0.2445,"Undetermined"],[120,0.463,0.2418,"Undetermined"],[121,0.4748,0.239,"Undetermined"],[122,0.4867,0.2363,"Undetermined"],[123,0.4986,0.2335,"Undetermined"],[124,0.4972,0.2225,"Undetermined"],[125,0.4945,0.2118,"Undetermined"],[126,0.4918,0.2016,"Undetermined"],[127,0.4915,0.2015,"Undetermined"],[128,0.4912,0.2014,"Undetermined"],[129,0.4908,0.2013,"Undetermined"],[130,0.4639,0.2646,"Undetermined"],[131,0.4639,0.2646,"Undetermined"],[132,0.4639,0.2646,"Undetermined"],[133,0.4653,0.2656,"Undetermined"],[134,0.4548,0.2667,"Undetermined"],[135,0.4442,0.2679,"Undetermined"],[136,0.4318,0.271,"Undetermined"],[137,0.4194,0.2742,"Undetermined"],[138,0.4079,0.2761,"Undetermined"],[139,0.397,0.2775,"Undetermined"],[140,0.386,0.279,"Undetermined"],[141,0.3751,0.2805,"Undetermined"],[142,0.3641,0.282,"Undetermined"],[143,0.3532,0.2835,"Undetermined"],[144,0.3422,0.2849,"Undetermined"],[145,0.3238,0.2876,"Phase 2"],[146,0.3054,0.2902,"Phase 2"],[147,0.287,0.2929,"Phase 2"],[148,0.2753,0.2936,"Phase 2"],[149,0.2637,0.2942,"Phase 1"],[150,0.252,0.2949,"Phase 1"],[151,0.2404,0.2971,"Phase 1"],[152,0.2289,0.2993,"Phase 1"],[153,0.2173,0.3015,"Phase 1"],[154,0.2058,0.3037,"Phase 1"],[155,0.1949,0.3053,"Phase 1"],[156,0.1841,0.3069,"Phase 1"],[157,0.1733,0.3085,"Phase 1"],[158,0.1625,0.3101,"Phase 1"],[159,0.1516,0.3117,"Phase 1"],[160,0.1694,0.3513,"Phase 1"],[161,0.1694,0.3513,"Phase 1"],[162,0.1694,0.3513,"Phase 1"],[163,0.1708,0.3523,"Phase 2"],[164,0.1758,0.362,"Phase 1"],[165,0.1828,0.3718,"Phase 1"],[166,0.1876,0.3805,"Phase 1"],[167,0.1957,0.3935,"Phase 1"],[168,0.4135,0.3959,"Phase 1"],[169,0.4135,0.3959,"Phase 1"],[170,0.4135,0.3959,"Phase 1"],[171,0.4135,0.3959,"Phase 1"],[172,0.3539,0.3828,"Phase 1"],[173,0.2943,0.3697,"Phase 1"],[174,0.2347,0.3566,"Phase 1"],[175,0.231,0.3461,"Phase 1"],[176,0.2209,0.3363,"Phase 2"],[177,0.2201,0.3237,"Phase 2"],[178,0.2307,0.3229,"Phase 2"],[179,0.2425,0.3251,"Phase 2"],[180,0.2542,0.3273,"Phase 2"],[181,0.2659,0.3295,"Phase 2"],[182,0.2607,0.3424,"Phase 1"],[183,0.2641,0.3532,"Phase 1"],[184,0.2676,0.3639,"Phase 1"],[185,0.2698,0.3746,"Phase 1"],[186,0.279,0.3777,"Phase 2"],[187,0.2881,0.3807,"Phase 2"],[188,0.2973,0.3838,"Phase 2"],[189,0.3065,0.3869,"Phase 2"],[190,0.3124,0.3789,"Phase 2"],[191,0.3183,0.3709,"Phase 2"],[192,0.3169,0.3602,"Phase 2"],[193,0.3146,0.3494,"Phase 2"],[194,0.3148,0.3396,"Phase 2"],[195,0.3143,0.3319,"Phase 2"],[196,0.3141,0.3243,"Phase 2"],[197,0.3189,0.3176,"Phase 2"],[198,0.3238,0.3108,"Phase 2"],[199,0.3567,0.3038,"Undetermined"],[200,0.376,0.3019,"Undetermined"],[201,0.3964,0.2984,"Undetermined"],[202,0.4153,0.2964,"Undetermined"],[203,0.4368,0.2937,"Undetermined"],[204,0.4604,0.29,"Undetermined"],[205,0.4801,0.2875,"Undetermined"],[206,0.5,0.284,"Undetermined"],[207,0.498,0.2854,"Undetermined"],[208,0.496,0.2869,"Undetermined"],[209,0.5031,0.3243,"Undetermined"],[210,0.5194,0.3255,"Undetermined"],[211,0.5213,0.3362,"Undetermined"],[212,0.524,0.347,"Undetermined"],[213,0.5267,0.3584,"Undetermined"],[214,0.5173,0.3622,"Undetermined"],[215,0.5078,0.3661,"Undetermined"],[216,0.4984,0.37,"Undetermined"],[217,0.4864,0.3695,"Undetermined"],[218,0.4761,0.364,"Undetermined"],[219,0.474,0.3532,"Undetermined"],[220,0.4722,0.3415,"Undetermined"],[221,0.4698,0.3295,"Undetermined"],[222,0.4723,0.3171,"Undetermined"],[223,0.4661,0.3081,"Undetermined"],[224,0.4552,0.309,"Undetermined"],[225,0.4566,0.3099,"Undetermined"],[226,0.4566,0.3099,"Undetermined"],[227,0.4442,0.331,"Undetermined"],[228,0.4385,0.3337,"Undetermined"],[229,0.4434,0.3452,"Undetermined"],[230,0.4376,0.3508,"Undetermined"],[231,0.4319,0.3563,"Undetermined"],[232,0.4261,0.3619,"Undetermined"],[233,0.4203,0.3674,"Undetermined"],[234,0.4146,0.373,"Undetermined"],[235,0.4088,0.3786,"Undetermined"],[236,0.3951,0.3714,"Undetermined"],[237,0.3921,0.3602,"Undetermined"],[238,0.3881,0.3504,"Undetermined"],[239,0.3849,0.3413,"Undetermined"],[240,0.3817,0.3322,"Undetermined"],[241,0.3797,0.324,"Undetermined"],[242,0.4149,0.3969,"Undetermined"],[243,0.4524,0.3926,"Undetermined"],[244,0.492,0.3886,"Undetermined"],[245,0.5242,0.3855,"Undetermined"],[246,0.5264,0.3989,"Undetermined"],[247,0.4957,0.4019,"Undetermined"],[248,0.4589,0.4058,"Undetermined"],[249,0.4221,0.4097,"Undetermined"],[250,0.3119,0.4045,"Phase 2"],[251,0.2739,0.408,"Phase 1"],[252,0.236,0.4116,"Phase 1"],[253,0.212,0.4146,"Phase 2"],[254,0.1771,0.4137,"Phase 2"],[255,0.144,0.4207,"Phase 2"],[256,0.1626,0.433,"Phase 2"],[257,0.2162,0.4272,"Phase 1"],[258,0.2426,0.4253,"Phase 1"],[259,0.2768,0.4216,"Phase 1"],[260,0.3135,0.4176,"Phase 2"],[261,0.1804,0.4532,"Phase 1"],[262,0.1593,0.4596,"Phase 1"],[263,0.1551,0.4736,"Phase 1"],[264,0.1581,0.4896,"Phase 1"],[265,0.1658,0.5022,"Phase 1"],[266,0.1818,0.5088,"Phase 1"],[267,0.1992,0.5041,"Phase 1"],[268,0.2133,0.4932,"Phase 1"],[269,0.2219,0.4831,"Phase 1"],[270,0.2238,0.4704,"Phase 1"],[271,0.2386,0.4578,"Phase 2"],[272,0.2532,0.4644,"Phase 2"],[273,0.2697,0.4704,"Phase 2"],[274,0.2618,0.4859,"Phase 2"],[275,0.2448,0.4941,"Phase 2"],[276,0.2353,0.5042,"Phase 2"],[277,0.2372,0.519,"Phase 2"],[278,0.2391,0.5338,"Phase 2"],[279,0.2571,0.541,"Phase 2"],[280,0.2764,0.5416,"Phase 2"],[281,0.2933,0.5337,"Phase 2"],[282,0.3022,0.519,"Phase 2"],[283,0.2992,0.5065,"Phase 2"],[284,0.2963,0.494,"Phase 2"],[285,0.3048,0.4777,"Phase 2"],[286,0.3214,0.4785,"Phase 2"],[287,0.3398,0.4796,"Phase 2"],[288,0.3428,0.496,"Phase 2"],[289,0.3368,0.5084,"Phase 2"],[290,0.3308,0.5208,"Phase 2"],[291,0.3383,0.5338,"Phase 2"],[292,0.3524,0.5429,"Phase 2"],[293,0.3852,0.5408,"Undetermined"],[294,0.3981,0.5283,"Undetermined"],[295,0.3922,0.5152,"Undetermined"],[296,0.3862,0.5021,"Undetermined"],[297,0.3803,0.489,"Undetermined"],[298,0.3744,0.4759,"Undetermined"],[299,0.3911,0.4718,"Undetermined"],[300,0.407,0.4685,"Undetermined"],[301,0.4199,0.4814,"Undetermined"],[302,0.4197,0.4948,"Undetermined"],[303,0.4268,0.5063,"Undetermined"],[304,0.4422,0.5199,"Undetermined"],[305,0.4601,0.5226,"Undetermined"],[306,0.4792,0.5181,"Undetermined"],[307,0.5031,0.4635,"Undetermined"],[308,0.5061,0.4649,"Undetermined"],[309,0.5091,0.4662,"Undetermined"],[310,0.47,0.4709,"Undetermined"],[311,0.4525,0.4663,"Undetermined"],[312,0.4377,0.4532,"Undetermined"],[313,0.4502,0.4443,"Undetermined"],[314,0.4629,0.4339,"Undetermined"],[315,0.4818,0.4434,"Undetermined"],[316,0.4914,0.4551,"Undetermined"],[317,0.5031,0.4635,"Undetermined"],[318,0.5238,0.4695,"Undetermined"],[319,0.5425,0.4616,"Undetermined"],[320,0.5405,0.4483,"Undetermined"],[321,0.5386,0.435,"Undetermined"],[322,0.5366,0.4217,"Undetermined"],[323,0.5146,0.4185,"Undetermined"],[324,0.4975,0.4199,"Undetermined"],[325,0.5572,0.4879,"Undetermined"],[326,0.5508,0.5083,"Undetermined"],[327,0.5319,0.5247,"Undetermined"],[328,0.5129,0.5411,"Undetermined"],[329,0.4815,0.5509,"Undetermined"],[330,0.4449,0.5538,"Undetermined"],[331,0.4135,0.5623,"Undetermined"],[332,0.4003,0.5817,"Undetermined"],[333,0.4425,0.5835,"Undetermined"],[334,0.4771,0.5806,"Undetermined"],[335,0.5099,0.5756,"Undetermined"],[336,0.5395,0.5631,"Undetermined"],[337,0.5627,0.5499,"Undetermined"],[338,0.5675,0.531,"Undetermined"],[339,0.5677,0.5742,"Undetermined"],[340,0.5702,0.5863,"Undetermined"],[341,0.5727,0.5984,"Undetermined"],[342,0.5478,0.6064,"Undetermined"],[343,0.5139,0.6158,"Undetermined"],[344,0.4792,0.6172,"Undetermined"],[345,0.4454,0.614,"Undetermined"],[346,0.41,0.6118,"Undetermined"],[357,0.5773,0.626,"Undetermined"],[358,0.5895,0.6467,"Undetermined"],[359,0.5944,0.6679,"Undetermined"],[360,0.5994,0.6892,"Undetermined"],[363,0.4033,0.632,"Undetermined"],[364,0.4362,0.633,"Undetermined"],[365,0.4605,0.6366,"Undetermined"],[366,0.3721,0.5888,"Phase 1"],[367,0.3493,0.5847,"Phase 1"],[368,0.3388,0.5735,"Phase 1"],[369,0.3193,0.568,"Phase 1"],[370,0.3017,0.568,"Phase 1"],[371,0.2844,0.5718,"Phase 1"],[372,0.2654,0.5726,"Phase 1"],[373,0.2464,0.5735,"Phase 1"],[374,0.2306,0.5691,"Phase 1"],[375,0.2162,0.5628,"Phase 1"],[376,0.2036,0.5568,"Phase 1"],[377,0.189,0.5482,"Phase 1"],[378,0.177,0.5367,"Phase 1"],[379,0.1649,0.5252,"Phase 1"],[380,0.1724,0.5647,"Phase 1"],[381,0.1757,0.5777,"Phase 1"],[382,0.1915,0.5861,"Phase 1"],[383,0.2074,0.5945,"Phase 1"],[384,0.2216,0.5991,"Phase 1"],[385,0.2389,0.6005,"Phase 1"],[386,0.2562,0.6018,"Phase 1"],[387,0.2735,0.6032,"Phase 1"],[388,0.2502,0.6041,"Phase 1"],[389,0.2268,0.605,"Phase 1"],[390,0.2035,0.606,"Phase 1"],[391,0.1802,0.6069,"Phase 1"],[392,0.1832,0.6203,"Phase 1"],[393,0.1999,0.6293,"Phase 1"],[394,0.2167,0.63,"Phase 1"],[395,0.2348,0.6303,"Phase 1"],[396,0.2508,0.633,"Phase 1"],[397,0.2729,0.633,"Phase 1"],[398,0.2888,0.6322,"Phase 1"],[399,0.3056,0.6303,"Phase 1"],[400,0.321,0.6275,"Phase 1"],[401,0.3367,0.6196,"Phase 1"],[402,0.3538,0.6196,"Phase 1"],[403,0.3688,0.6175,"Phase 1"],[404,0.3702,0.6366,"Phase 1"],[405,0.3424,0.642,"Phase 1"],[406,0.3174,0.648,"Phase 1"],[407,0.2956,0.6526,"Phase 1"],[408,0.3064,0.6639,"Phase 1"],[409,0.3172,0.6753,"Phase 1"],[410,0.3415,0.6687,"Phase 1"],[411,0.368,0.661,"Phase 1"],[412,0.414,0.6553,"Undetermined"],[413,0.4433,0.6571,"Undetermined"],[414,0.4712,0.6489,"Undetermined"],[416,0.2872,0.6888,"Phase 2"],[417,0.3058,0.694,"Phase 2"],[418,0.3266,0.6949,"Phase 2"],[419,0.3442,0.6897,"Phase 2"],[420,0.3606,0.6841,"Phase 2"],[421,0.3788,0.6788,"Phase 2"],[422,0.4203,0.6761,"Undetermined"],[423,0.4485,0.6798,"Undetermined"],[425,0.5986,0.7136,"Undetermined"],[427,0.568,0.7191,"Undetermined"],[428,0.5459,0.704,"Undetermined"],[429,0.5483,0.6838,"Undetermined"],[430,0.5668,0.6686,"Undetermined"],[431,0.5483,0.6544,"Undetermined"],[432,0.5252,0.6695,"Undetermined"],[433,0.5005,0.6727,"Undetermined"],[434,0.4983,0.6534,"Undetermined"],[435,0.5189,0.636,"Undetermined"],[436,0.5486,0.6293,"Undetermined"],[438,0.501,0.91,"Undetermined"],[439,0.5337,0.906,"Undetermined"],[440,0.5657,0.9026,"Undetermined"],[441,0.5992,0.9042,"Undetermined"],[442,0.6317,0.9015,"Undetermined"],[443,0.3925,0.1724,"Undetermined"],[444,0.3921,0.1724,"Undetermined"],[446,0.2704,0.6743,"Phase 1"],[447,0.2628,0.6612,"Phase 1"],[448,0.243,0.6585,"Phase 1"],[449,0.2232,0.6557,"Phase 1"],[450,0.2034,0.653,"Phase 1"],[451,0.1937,0.6656,"Phase 1"],[452,0.1934,0.6822,"Phase 1"],[453,0.2034,0.695,"Phase 1"],[454,0.2235,0.698,"Phase 1"],[455,0.2436,0.7011,"Phase 1"],[456,0.3323,0.7728,"Phase 2"],[457,0.3241,0.7747,"Phase 2"],[458,0.316,0.7766,"Phase 2"],[459,0.3079,0.7784,"Phase 2"],[460,0.3122,0.8197,"Phase 2"],[461,0.3136,0.8207,"Phase 2"],[462,0.3173,0.8396,"Phase 2"],[463,0.3352,0.8539,"Phase 2"],[464,0.3973,0.9066,"Phase 2"],[465,0.3867,0.9068,"Phase 2"],[466,0.4073,0.1697,"Undetermined"],[467,0.4199,0.1678,"Undetermined"],[468,0.4326,0.1664,"Undetermined"],[469,0.4431,0.1648,"Undetermined"],[472,0.3121,0.9084,"Phase 1"],[473,0.3015,0.9087,"Phase 1"],[474,0.2908,0.9089,"Phase 1"],[475,0.2659,0.9109,"Phase 1"],[476,0.2404,0.908,"Phase 1"],[477,0.2346,0.8939,"Phase 1"],[478,0.2289,0.8798,"Phase 1"],[479,0.2512,0.8776,"Phase 1"],[480,0.2735,0.8754,"Phase 1"],[481,0.2937,0.867,"Phase 1"],[482,0.2932,0.8427,"Phase 1"],[483,0.291,0.8421,"Phase 1"],[484,0.2875,0.8243,"Phase 1"],[485,0.2534,0.8453,"Phase 1"],[486,0.226,0.8436,"Phase 1"],[487,0.2201,0.8261,"Phase 1"],[488,0.2173,0.8132,"Phase 1"],[489,0.2217,0.798,"Phase 1"],[490,0.2409,0.7949,"Phase 1"],[491,0.2636,0.7818,"Phase 1"],[492,0.2794,0.7889,"Phase 1"],[493,0.2772,0.8007,"Phase 1"],[494,0.2647,0.8082,"Phase 1"],[495,0.2518,0.8123,"Phase 1"],[496,0.2258,0.772,"Phase 1"],[497,0.2182,0.7701,"Phase 1"],[498,0.2072,0.7565,"Phase 1"],[499,0.204,0.7433,"Phase 1"],[500,0.2134,0.7311,"Phase 1"],[501,0.2228,0.7189,"Phase 1"],[502,0.2384,0.7339,"Phase 1"],[503,0.2539,0.749,"Phase 1"],[504,0.4878,0.6944,"Undetermined"],[505,0.5126,0.7078,"Undetermined"],[506,0.5307,0.7229,"Undetermined"],[507,0.5596,0.7394,"Undetermined"],[508,0.5928,0.7415,"Undetermined"],[509,0.5915,0.758,"Undetermined"],[510,0.5903,0.7746,"Undetermined"],[511,0.5707,0.7943,"Undetermined"],[512,0.5664,0.8157,"Undetermined"],[513,0.5568,0.844,"Undetermined"],[514,0.5451,0.8639,"Undetermined"],[515,0.5278,0.8814,"Undetermined"],[523,0.5064,0.8904,"Undetermined"],[524,0.4908,0.8812,"Undetermined"],[525,0.498,0.8667,"Undetermined"],[526,0.517,0.8458,"Undetermined"],[527,0.5282,0.8224,"Undetermined"],[528,0.5308,0.8009,"Undetermined"],[529,0.5306,0.7819,"Undetermined"],[530,0.5241,0.7652,"Undetermined"],[531,0.5096,0.7487,"Undetermined"],[532,0.4951,0.7323,"Undetermined"],[533,0.4723,0.7155,"Undetermined"],[534,0.4498,0.7149,"Undetermined"],[535,0.4297,0.6997,"Undetermined"],[536,0.3937,0.6991,"Phase 2"],[537,0.376,0.7038,"Phase 2"],[538,0.3599,0.7126,"Phase 2"],[539,0.3446,0.7255,"Phase 2"],[540,0.3312,0.7367,"Phase 2"],[541,0.3363,0.7374,"Undetermined"],[542,0.3414,0.7381,"Phase 2"],[543,0.3465,0.7388,"Phase 2"],[544,0.3576,0.7894,"Phase 2"],[545,0.3644,0.8027,"Phase 2"],[546,0.3654,0.817,"Phase 2"],[547,0.3665,0.8313,"Phase 2"],[548,0.3811,0.8393,"Phase 2"],[549,0.3869,0.842,"Phase 2"],[550,0.3945,0.8669,"Phase 2"],[551,0.393,0.8763,"Phase 2"],[552,0.3916,0.8858,"Phase 2"],[553,0.3902,0.8952,"Phase 2"],[554,0.4136,0.8952,"Undetermined"],[555,0.4191,0.8799,"Undetermined"],[556,0.4277,0.8613,"Undetermined"],[557,0.4468,0.8421,"Undetermined"],[558,0.4446,0.8404,"Undetermined"],[559,0.4424,0.8387,"Undetermined"],[560,0.4336,0.7509,"Undetermined"],[561,0.4387,0.7516,"Undetermined"],[562,0.4079,0.7461,"Undetermined"],[563,0.4118,0.766,"Undetermined"],[564,0.4314,0.8305,"Phase 2"],[565,0.4292,0.8288,"Phase 2"],[566,0.427,0.8272,"Phase 2"],[567,0.4186,0.8265,"Phase 2"],[568,0.4101,0.8259,"Phase 2"],[569,0.4566,0.1629,"Phase 2"],[570,0.4537,0.1639,"Phase 2"],[571,0.4508,0.1649,"Phase 2"],[572,0.4017,0.8252,"Phase 2"],[573,0.3916,0.81,"Phase 2"],[574,0.404,0.8081,"Phase 2"],[575,0.3698,0.7661,"Phase 2"],[576,0.3877,0.7511,"Phase 2"],[577,0.4056,0.736,"Phase 2"],[578,0.4234,0.721,"Undetermined"],[579,0.4546,0.7304,"Undetermined"],[580,0.4756,0.7452,"Undetermined"],[581,0.4911,0.7633,"Undetermined"],[582,0.5033,0.7927,"Undetermined"],[583,0.4988,0.8133,"Undetermined"],[584,0.4942,0.8338,"Undetermined"],[585,0.48,0.8534,"Undetermined"],[586,0.4609,0.8745,"Undetermined"],[587,0.4698,0.8964,"Undetermined"],[596,0.5766,0.8794,"Undetermined"],[597,0.5799,0.8569,"Undetermined"],[598,0.5852,0.8183,"Undetermined"],[599,0.5932,0.8156,"Undetermined"],[600,0.596,0.7962,"Undetermined"],[601,0.6164,0.7909,"Undetermined"],[602,0.6225,0.8048,"Undetermined"],[603,0.6285,0.8188,"Undetermined"],[605,0.632,0.8404,"Undetermined"],[606,0.6396,0.8657,"Undetermined"],[607,0.6324,0.8813,"Undetermined"],[608,0.6082,0.8842,"Undetermined"],[615,0.292,0.887,"Phase 1"],[616,0.2492,0.8623,"Phase 1"],[617,0.3165,0.2099,"Undetermined"],[618,0.3179,0.2109,"Undetermined"],[620,0.3349,0.9138,"Phase 2"]];
+
+const STATUS_STYLE = {
+  'Undelivered':    {shape:'circle', color:'var(--c-undelivered)'},
+  'Unbuilt':        {shape:'circle', color:'var(--c-unbuilt)'},
+  'Concrete Work':  {shape:'circle', color:'var(--c-concrete)'},
+  'Internal Finish':{shape:'circle', color:'var(--c-finish)'},
+  'Delivered':      {shape:'star',   color:'#800080'}
+};
+const STROKE_W = 2.5;
+
+let unitState = {};
+DEFAULT_UNITS.forEach(u => { unitState[u[0]] = {x:u[1], y:u[2], phase:u[3], status:'Undelivered'}; });
+
+let selectedPhase = 'ALL';
+let zoom = 1;
+let activeUnit = null;
+let autoRefreshTimer = null;
+let editMode = false;
+let pendingChanges = {};
+let dragNum = null;
+
+const el = id => document.getElementById(id);
+
+function starPoints(cx, cy, rOuter, rInner){
+  const pts = [];
+  for(let i=0;i<10;i++){
+    const r = i%2===0 ? rOuter : rInner;
+    const a = -Math.PI/2 + i*Math.PI/5;
+    pts.push((cx+r*Math.cos(a)).toFixed(2) + ',' + (cy+r*Math.sin(a)).toFixed(2));
+  }
+  return pts.join(' ');
+}
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function makeShapeSVG(size){
+  const svg = document.createElementNS(SVGNS,'svg');
+  svg.setAttribute('viewBox','0 0 20 20');
+  svg.setAttribute('width', size); svg.setAttribute('height', size);
+  const circle = document.createElementNS(SVGNS,'circle');
+  circle.setAttribute('cx','10'); circle.setAttribute('cy','10'); circle.setAttribute('r','7.5');
+  circle.setAttribute('fill','none'); circle.setAttribute('stroke-width', STROKE_W);
+  const star = document.createElementNS(SVGNS,'polygon');
+  star.setAttribute('points', starPoints(10,10,8.6,3.6));
+  star.setAttribute('fill','none'); star.setAttribute('stroke-width', STROKE_W);
+  svg.appendChild(circle); svg.appendChild(star);
+  return {svg, circle, star};
+}
+
+function legendSwatch(container, shape, color, label){
+  const {svg, circle, star} = makeShapeSVG(16);
+  circle.setAttribute('stroke', color); star.setAttribute('stroke', color);
+  if(shape==='circle') star.style.display='none'; else circle.style.display='none';
+  container.appendChild(svg);
+  const span = document.createElement('span');
+  span.textContent = label;
+  container.appendChild(span);
+}
+
+function buildLegend(){
+  legendSwatch(el('legendUndelivered'), 'circle', getComputedStyle(document.documentElement).getPropertyValue('--c-undelivered').trim(), 'Undelivered');
+  legendSwatch(el('legendUnbuilt'), 'circle', getComputedStyle(document.documentElement).getPropertyValue('--c-unbuilt').trim(), 'Unbuilt');
+  legendSwatch(el('legendConcrete'), 'circle', getComputedStyle(document.documentElement).getPropertyValue('--c-concrete').trim(), 'Concrete work');
+  legendSwatch(el('legendFinish'), 'circle', getComputedStyle(document.documentElement).getPropertyValue('--c-finish').trim(), 'Internal finish');
+  legendSwatch(el('legendDelivered'), 'star', '#800080', 'Delivered');
+}
+
+function showError(msg){ const b=el('errBanner'); b.textContent=msg; b.style.display='block'; }
+function clearBanner(){ el('errBanner').style.display='none'; }
+function setConn(state, text){
+  const colors = {ok:'var(--c-delivered)', error:'#B5473C', loading:'var(--teal)'};
+  el('connDot').style.background = colors[state] || 'var(--c-unbuilt)';
+  el('connTxt').innerHTML = text;
+}
+
+function buildBatchUrl(){
+  return `https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}/values:batchGet?ranges=Units!A:C&ranges=Position!A:C&key=${encodeURIComponent(CC_API_KEY)}&_=${Date.now()}`;
+}
+
+function refreshPhaseOptions(){
+  const sel = el('phaseSelect');
+  const current = sel.value;
+  const phasesInUse = Array.from(new Set(Object.values(unitState).map(u=>u.phase))).sort();
+  sel.innerHTML = '<option value="ALL">All phases</option>';
+  phasesInUse.forEach(p=>{
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    sel.appendChild(opt);
+  });
+  if(phasesInUse.includes(current)) sel.value = current; else selectedPhase = 'ALL';
+}
+
+async function loadFromSheet(){
+  setConn('loading', 'Loading from Google Sheet…');
+  try{
+    let res;
+    try{ res = await fetch(buildBatchUrl(), {cache:'no-store'}); }
+    catch(e){ throw new Error('NETWORK: ' + (e && e.message ? e.message : e)); }
+    let body;
+    try{ body = await res.json(); }
+    catch(e){ throw new Error('BADRESPONSE: HTTP ' + res.status); }
+    if(!res.ok){
+      const msg = (body && body.error && body.error.message) || ('HTTP ' + res.status);
+      throw new Error('APIERROR: ' + msg);
+    }
+    const ranges = body.valueRanges || [];
+    const unitsRange = ranges.find(r => r.range && r.range.startsWith('Units'));
+    const posRange = ranges.find(r => r.range && r.range.startsWith('Position'));
+
+    if(unitsRange && unitsRange.values && unitsRange.values.length > 1){
+      const vals = unitsRange.values;
+      const headers = vals[0].map(h=>String(h).trim().toLowerCase());
+      const cNum = headers.findIndex(h=>/^unit/.test(h));
+      const cPhase = headers.findIndex(h=>/^phase/.test(h));
+      const cStatus = headers.findIndex(h=>/^status/.test(h));
+      for(let i=1;i<vals.length;i++){
+        const row = vals[i];
+        const num = Number(row[cNum]);
+        if(Number.isNaN(num) || !unitState[num]) continue;
+        if(cPhase !== -1 && row[cPhase] !== undefined && String(row[cPhase]).trim() !== ''){
+          unitState[num].phase = String(row[cPhase]).trim();
+        }
+        const s = cStatus!==-1 ? String(row[cStatus]||'').trim() : '';
+        unitState[num].status = STATUS_STYLE[s] ? s : 'Undelivered';
+      }
+    } else {
+      throw new Error('NOROWS: Units sheet returned no rows');
+    }
+    if(posRange && posRange.values && posRange.values.length > 1){
+      const vals = posRange.values;
+      const headers = vals[0].map(h=>String(h).trim().toLowerCase());
+      const cNum = headers.findIndex(h=>/^unit/.test(h));
+      const cX = headers.findIndex(h=>/^x/.test(h));
+      const cY = headers.findIndex(h=>/^y/.test(h));
+      for(let i=1;i<vals.length;i++){
+        const row = vals[i];
+        const num = Number(row[cNum]);
+        if(Number.isNaN(num) || !unitState[num]) continue;
+        if(cX !== -1 && row[cX] !== undefined && row[cX] !== ''){
+          const xv = Number(row[cX]); if(!Number.isNaN(xv)) unitState[num].x = xv/100;
+        }
+        if(cY !== -1 && row[cY] !== undefined && row[cY] !== ''){
+          const yv = Number(row[cY]); if(!Number.isNaN(yv)) unitState[num].y = yv/100;
+        }
+      }
+    }
+
+    refreshPhaseOptions();
+    setConn('ok', `Connected — last updated ${new Date().toLocaleTimeString()}`);
+    clearBanner();
+    render();
+  }catch(err){
+    setConn('error', 'Could not load the sheet.');
+    const raw = (err && err.message) ? err.message : String(err);
+    let friendly = 'Couldn\'t reach that sheet.';
+    if(/^NETWORK:/.test(raw)) friendly = 'The browser blocked or couldn\'t make the request (often CORS or connectivity).';
+    else if(/API key not valid|API_KEY_INVALID/i.test(raw)) friendly = 'That API key was rejected.';
+    else if(/permission|caller does not have/i.test(raw)) friendly = 'Couldn\'t read that sheet — check sharing is "Anyone with the link".';
+    else if(/Unable to parse range/i.test(raw)) friendly = 'Couldn\'t find "Units" or "Position" tabs — check tab names exactly.';
+    else if(/^NOROWS:/.test(raw)) friendly = 'Connected, but the Units sheet looked empty.';
+    showError(friendly + ' [Details: ' + raw.replace(/^[A-Z]+:\s*/, '') + ']');
+  }
+}
+
+function buildMarkers(){
+  const content = el('mapcontent');
+  DEFAULT_UNITS.forEach(u=>{
+    const num = u[0];
+    const {svg, circle, star} = makeShapeSVG(11);
+    svg.classList.add('marker');
+    svg.dataset.num = num;
+    svg.style.position = 'absolute';
+    svg.style.transform = 'translate(-50%,-50%)';
+    svg.addEventListener('mouseenter', ()=>{ if(!editMode) selectUnit(num); });
+    svg.addEventListener('click', ()=>{ if(!editMode) selectUnit(num); });
+    svg.addEventListener('pointerdown', (ev)=>onMarkerPointerDown(ev, num));
+    svg.title = 'Unit ' + num;
+    svg._circle = circle; svg._star = star;
+    content.appendChild(svg);
+  });
+}
+
+function onMarkerPointerDown(ev, num){
+  if(!editMode) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  const marker = ev.currentTarget;
+  marker.setPointerCapture(ev.pointerId);
+  dragNum = num;
+  selectUnit(num);
+
+  function onMove(mv){
+    const content = el('mapcontent');
+    const rect = content.getBoundingClientRect();
+    let xf = (mv.clientX - rect.left) / rect.width;
+    let yf = (mv.clientY - rect.top) / rect.height;
+    xf = Math.min(1, Math.max(0, xf));
+    yf = Math.min(1, Math.max(0, yf));
+    unitState[num].x = xf;
+    unitState[num].y = yf;
+    marker.style.left = (xf*100)+'%';
+    marker.style.top = (yf*100)+'%';
+  }
+  function onUp(up){
+    marker.releasePointerCapture(up.pointerId);
+    marker.removeEventListener('pointermove', onMove);
+    marker.removeEventListener('pointerup', onUp);
+    marker.removeEventListener('pointercancel', onUp);
+    pendingChanges[num] = { x: Math.round(unitState[num].x*10000)/100, y: Math.round(unitState[num].y*10000)/100 };
+    dragNum = null;
+    updateSaveButton();
+  }
+  marker.addEventListener('pointermove', onMove);
+  marker.addEventListener('pointerup', onUp);
+  marker.addEventListener('pointercancel', onUp);
+}
+
+function updateSaveButton(){
+  const count = Object.keys(pendingChanges).length;
+  const btn = el('btnSavePositions');
+  btn.disabled = count === 0;
+  btn.style.opacity = count === 0 ? '0.5' : '1';
+  btn.textContent = count === 0 ? 'Save positions' : `Save positions (${count})`;
+  el('pendingLine').textContent = count === 0 ? '' : 'Unsaved: ' + Object.keys(pendingChanges).join(', ');
+}
+
+async function savePositions(){
+  const count = Object.keys(pendingChanges).length;
+  if(count === 0) return;
+  if(typeof CC_WRITE_URL === 'undefined' || !CC_WRITE_URL || CC_WRITE_URL.indexOf('PASTE_YOUR') === 0){
+    showError('Position saving isn\'t set up yet — add CC_WRITE_URL and CC_WRITE_TOKEN to config.js (see Setup_Instructions.md).');
+    return;
+  }
+  const btn = el('btnSavePositions');
+  const oldText = btn.textContent;
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  const updates = Object.keys(pendingChanges).map(num => ({ num: Number(num), x: pendingChanges[num].x, y: pendingChanges[num].y }));
+  try{
+    const res = await fetch(CC_WRITE_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({ token: CC_WRITE_TOKEN, updates: updates })
+    });
+    const body = await res.json();
+    if(!body.success) throw new Error(body.error || 'Unknown error saving');
+    pendingChanges = {};
+    updateSaveButton();
+    clearBanner();
+  }catch(err){
+    showError('Couldn\'t save positions: ' + (err && err.message ? err.message : err));
+    btn.textContent = oldText; btn.disabled = false;
+  }
+}
+
+function selectUnit(num){
+  activeUnit = num;
+  const st = unitState[num];
+  if(!st) return;
+  el('unitPanel').classList.remove('hidden');
+  el('unitPanelTitle').textContent = 'Unit ' + num;
+  el('unitPhaseLine').textContent = 'Phase: ' + st.phase;
+  const s = el('unitStatusLine');
+  s.textContent = st.status;
+  s.style.color = STATUS_STYLE[st.status].color.startsWith('var') ? '' : STATUS_STYLE[st.status].color;
+  render();
+}
+
+function jumpToUnit(num){
+  const st = unitState[num];
+  if(!st){ showError(`Unit ${num} isn't on this plan.`); return; }
+  clearBanner();
+  selectUnit(num);
+  requestAnimationFrame(()=>{
+    const vp = el('mapwrap'), content = el('mapcontent');
+    const targetX = st.x*content.offsetWidth - vp.clientWidth/2;
+    const targetY = st.y*content.offsetHeight - vp.clientHeight/2;
+    vp.scrollTo({left:Math.max(0,targetX), top:Math.max(0,targetY), behavior:'smooth'});
+  });
+}
+
+function render(){
+  const nums = Object.keys(unitState).map(Number);
+  const total = nums.length;
+  const delivered = nums.filter(n=>unitState[n].status==='Delivered').length;
+  const pct = total ? Math.round(delivered/total*100) : 0;
+  el('statTotal').textContent = total;
+  el('statDelivered').textContent = delivered;
+  el('statPct').textContent = pct+'%';
+
+  if(selectedPhase !== 'ALL'){
+    const inPhase = nums.filter(n=>unitState[n].phase===selectedPhase);
+    const del = inPhase.filter(n=>unitState[n].status==='Delivered').length;
+    el('phaseStatLine').textContent = `${del} / ${inPhase.length} delivered`;
+  } else {
+    el('phaseStatLine').textContent = '';
+  }
+
+  const contentWidth = 900*zoom;
+  const contentHeight = contentWidth * (15940/11024);
+  el('mapcontent').style.width = contentWidth+'px';
+  el('mapcontent').style.height = contentHeight+'px';
+  el('zoomVal').textContent = Math.round(zoom*100)+'%';
+
+  document.querySelectorAll('.marker').forEach(m=>{
+    const num = Number(m.dataset.num);
+    const st = unitState[num];
+    if(!st) return;
+    const style = STATUS_STYLE[st.status];
+    const dimmed = selectedPhase !== 'ALL' && st.phase !== selectedPhase;
+    const isActive = activeUnit === num;
+    const size = isActive ? 22 : 11;
+
+    m.style.left = (st.x*100)+'%';
+    m.style.top = (st.y*100)+'%';
+    m.setAttribute('width', size); 
+    m.setAttribute('height', size);
+    m.style.opacity = dimmed ? 0.15 : 1;
+    m.classList.toggle('active', isActive);
+
+    const showStar = style.shape === 'star';
+    m._circle.style.display = showStar ? 'none' : '';
+    m._star.style.display = showStar ? '' : 'none';
+
+    if (isActive) {
+      m._circle.setAttribute('stroke', '#FF0000');
+      m._circle.setAttribute('fill', 'rgba(255, 165, 0, 0.5)');
+      
+      m._star.setAttribute('stroke', '#FF0000');
+      m._star.setAttribute('fill', 'rgba(255, 165, 0, 0.5)');
+    } else {
+      m._circle.setAttribute('stroke', style.color);
+      m._circle.setAttribute('fill', 'none');
+
+      m._star.setAttribute('stroke', style.color);
+      m._star.setAttribute('fill', 'none');
+    }
+  });
+}
+
+function init(){
+  if(typeof CC_SHEET_ID === 'undefined' || typeof CC_API_KEY === 'undefined' ||
+     !CC_SHEET_ID || !CC_API_KEY ||
+     CC_SHEET_ID.indexOf('PASTE_YOUR') === 0 || CC_API_KEY.indexOf('PASTE_YOUR') === 0){
+    el('mainApp').classList.add('hidden');
+    el('connbar').classList.add('hidden');
+    el('notConfigured').classList.remove('hidden');
+    return;
+  }
+
+  buildLegend();
+  buildMarkers();
+  refreshPhaseOptions();
+  render();
+
+  const editingEnabled = (typeof CC_ENABLE_POSITION_EDITING !== 'undefined') && CC_ENABLE_POSITION_EDITING === true;
+  if(!editingEnabled){
+    el('positionsPanel').classList.add('hidden');
+  }
+
+  el('btnRefresh').addEventListener('click', loadFromSheet);
+  el('editToggle').addEventListener('change', e=>{
+    editMode = e.target.checked;
+    el('mapcontent').classList.toggle('edit-mode', editMode);
+  });
+  el('btnSavePositions').addEventListener('click', savePositions);
+  el('btnGo').addEventListener('click', ()=>{
+    const n = Number(el('searchInput').value.trim());
+    if(!el('searchInput').value.trim() || Number.isNaN(n)){ showError('Enter a unit number to jump to it.'); return; }
+    jumpToUnit(n);
+  });
+  el('searchInput').addEventListener('keydown', e=>{ if(e.key==='Enter') el('btnGo').click(); });
+  el('phaseSelect').addEventListener('change', e=>{ selectedPhase = e.target.value; render(); });
+  el('zoomIn').addEventListener('click', ()=>{ zoom = Math.min(4, Math.round((zoom+0.5)*100)/100); render(); });
+  el('zoomOut').addEventListener('click', ()=>{ zoom = Math.max(0.5, Math.round((zoom-0.5)*100)/100); render(); });
+  el('zoomReset').addEventListener('click', ()=>{ zoom = 1; render(); });
+
+  loadFromSheet();
+  autoRefreshTimer = setInterval(loadFromSheet, 5*60*1000);
+}
+
+init();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cali Coast — Unit Delivery Map</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  :root{
+    --ink:#0F2E3D; --teal:#1FA39A; --teal-dark:#14746E;
+    --sand:#F3ECDD; --sand-deep:#E7DCC3; --paper:#FBF8F1;
+    --c-undelivered:#6B7FA3; --c-unbuilt:#8B93A0; --c-concrete:#D6B32C; --c-finish:#C77A32; --c-delivered:#800080;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',ui-sans-serif,system-ui,-apple-system,sans-serif;}
+  .cc-display{font-family:'Fraunces',ui-serif,Georgia,serif;}
+
+  header{background:var(--ink);color:var(--paper);padding:18px 20px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;border-bottom:3px solid var(--teal);}
+  .brand{display:flex;align-items:baseline;gap:8px;}
+  .brand .name{font-size:26px;font-weight:700;color:var(--teal);letter-spacing:.3px;}
+  .brand .place{font-size:12px;letter-spacing:3px;color:#9FB4B1;text-transform:uppercase;}
+  .subtitle{font-size:14px;color:#C9D3D1;margin-top:2px;}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;}
+  .stat{background:rgba(255,255,255,.06);border-radius:8px;padding:6px 14px;text-align:center;min-width:76px;}
+  .stat .val{font-size:19px;font-weight:600;}
+  .stat .lbl{font-size:10.5px;color:#9FB4B1;text-transform:uppercase;letter-spacing:1px;}
+
+  .connbar{margin:16px 20px 0;padding:10px 16px;border-radius:10px;background:var(--sand);border:1.5px solid var(--sand-deep);display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .connbar .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--c-unbuilt);}
+  .connbar .txt{font-size:13.5px;color:#5B6470;}
+  .connbar .txt strong{color:var(--ink);}
+  button.btn{background:var(--teal);color:#fff;border:none;border-radius:8px;padding:9px 16px;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;}
+  button.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--sand-deep);font-weight:500;padding:8px 14px;}
+  button.btn:hover{filter:brightness(1.06);}
+
+  .banner{margin:10px 20px 0;padding:9px 14px;border-radius:8px;font-size:13.5px;font-weight:500;display:none;}
+  .banner.error{background:#FBEAE7;color:#B5473C;}
+  .banner.info{background:#E4F3F1;color:var(--teal-dark);}
+
+  .layout{display:flex;gap:16px;padding:20px;flex-wrap:wrap;align-items:flex-start;}
+  .side{width:240px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;}
+  .panel{background:#fff;border-radius:10px;padding:12px 14px;border:1px solid var(--sand-deep);}
+  .panel.accent{border-color:#1FA39A55;}
+  .panel h4{font-size:11.5px;text-transform:uppercase;letter-spacing:1px;color:#8B93A0;font-weight:600;margin:0 0 8px;}
+  .row{display:flex;gap:6px;}
+  input[type=text], select{width:100%;padding:7px 9px;border-radius:6px;border:1px solid var(--sand-deep);font-size:14px;font-family:inherit;}
+  .zoomrow{display:flex;gap:6px;}
+  .zoombtn{width:32px;height:30px;border-radius:6px;border:1px solid var(--sand-deep);background:var(--paper);font-size:16px;cursor:pointer;color:var(--ink);}
+  .zoomval{flex:1;text-align:center;font-size:13px;color:#5B6470;align-self:center;}
+  .legendrow{display:flex;align-items:center;gap:9px;font-size:13px;margin-bottom:7px;color:#3A4048;}
+  .legendrow svg{flex-shrink:0;}
+
+  .mapwrap{flex:1;min-width:300px;height:76vh;overflow:auto;background:#DCEEEC;border-radius:12px;border:1px solid var(--sand-deep);position:relative;}
+  .mapwrap::-webkit-scrollbar{width:10px;height:10px;}
+  .mapwrap::-webkit-scrollbar-thumb{background:#C7BBA0;border-radius:8px;}
+  .mapcontent{position:relative;}
+  .mapcontent img{width:100%;height:100%;display:block;user-select:none;}
+  .marker{position:absolute;cursor:pointer;transition:width .15s ease,height .15s ease,filter .15s ease;z-index:10;overflow:visible;touch-action:none;}
+  .mapcontent.edit-mode .marker{cursor:grab;}
+  .mapcontent.edit-mode .marker:active{cursor:grabbing;}
+  .marker:hover{z-index:50;}
+  .marker.active{z-index:60;animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{filter:drop-shadow(0 0 0px rgba(31,163,154,.9));}50%{filter:drop-shadow(0 0 5px rgba(31,163,154,.9));}}
+
+  footer{padding:4px 20px 22px;font-size:12px;color:#8B93A0;}
+  .notice{max-width:520px;margin:60px auto;background:#fff;border:1px solid var(--sand-deep);border-radius:14px;padding:28px 26px;text-align:center;}
+  .hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand"><span class="name cc-display">Cali Coast</span><span class="place">Ras El Hekma</span></div>
+    <div class="subtitle">Unit delivery map</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="val" id="statTotal">—</div><div class="lbl">Total units</div></div>
+    <div class="stat"><div class="val" id="statDelivered" style="color:var(--c-delivered)">—</div><div class="lbl">Delivered</div></div>
+    <div class="stat"><div class="val" id="statPct" style="color:var(--teal)">—</div><div class="lbl">Complete</div></div>
+  </div>
+</header>
+
+<div class="connbar" id="connbar">
+  <span class="dot" id="connDot"></span>
+  <span class="txt" id="connTxt">Loading…</span>
+  <button class="btn ghost" id="btnRefresh">Refresh now</button>
+</div>
+
+<div class="banner error" id="errBanner"></div>
+
+<div class="notice hidden" id="notConfigured">
+  <h2 class="cc-display">Not configured yet</h2>
+  <p style="color:#5B6470;font-size:14px;line-height:1.6;">This site needs its <code>config.js</code> filled in with a Google Sheet ID and API key before it can show anything. See Setup_Instructions.md.</p>
+</div>
+
+<div class="layout" id="mainApp">
+  <div class="side">
+    <div class="panel">
+      <h4>Find a unit</h4>
+      <div class="row">
+        <input type="text" id="searchInput" placeholder="e.g. 235" inputmode="numeric" />
+        <button class="btn" id="btnGo" style="padding:7px 12px;font-size:13px;">Go</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h4>Phase</h4>
+      <select id="phaseSelect">
+        <option value="ALL">All phases</option>
+      </select>
+      <div id="phaseStatLine" style="font-size:12.5px;color:#5B6470;margin-top:8px;"></div>
+    </div>
+    <div class="panel">
+      <h4>Zoom</h4>
+      <div class="zoomrow">
+        <button class="zoombtn" id="zoomOut">−</button>
+        <div class="zoomval" id="zoomVal">100%</div>
+        <button class="zoombtn" id="zoomIn">+</button>
+      </div>
+      <button class="btn ghost" id="zoomReset" style="width:100%;margin-top:8px;font-size:12.5px;padding:5px 0;">Reset view</button>
+    </div>
+    <div class="panel">
+      <h4>Legend</h4>
+      <div class="legendrow" id="legendUndelivered"></div>
+      <div class="legendrow" id="legendUnbuilt"></div>
+      <div class="legendrow" id="legendConcrete"></div>
+      <div class="legendrow" id="legendFinish"></div>
+      <div class="legendrow" id="legendDelivered"></div>
+    </div>
+    <div class="panel" id="positionsPanel">
+      <h4>Positions</h4>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#3A4048;cursor:pointer;">
+        <input type="checkbox" id="editToggle" style="width:15px;height:15px;" />
+        Edit positions (drag pins)
+      </label>
+      <button class="btn" id="btnSavePositions" disabled style="width:100%;margin-top:9px;opacity:0.5;">Save positions</button>
+      <div id="pendingLine" style="font-size:12px;color:#5B6470;margin-top:6px;"></div>
+    </div>
+    <div class="panel accent hidden" id="unitPanel">
+      <h4 id="unitPanelTitle">Unit</h4>
+      <div style="font-size:13px;line-height:1.6;color:#3A4048;">
+        <div id="unitPhaseLine"></div>
+        <div>Status: <strong id="unitStatusLine"></strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mapwrap" id="mapwrap">
+    <div class="mapcontent" id="mapcontent">
+      <img id="planImg" src="plan.jpg" alt="Cali Coast master plan" draggable="false" />
+    </div>
+  </div>
+</div>
+
+<footer>Phase, Position, and Status are each read live from their own sheet tab — edit any of them in Google Sheets and refresh to see it here. Refreshes automatically every 5 minutes.</footer>
+
+<script src="config.js"></script>
+<script>
+const DEFAULT_UNITS = [[1,0.2341,0.2302,"Phase 1"],[2,0.2355,0.2311,"Phase 1"],[3,0.3194,0.2002,"Phase 1"],[4,0.373,0.2335,"Phase 1"],[5,0.4088,0.2583,"Phase 1"],[6,0.3576,0.254,"Phase 1"],[7,0.3063,0.2497,"Phase 2"],[8,0.2099,0.1774,"Phase 2"],[9,0.4453,0.1647,"Phase 2"],[10,0.2427,0.1728,"Phase 2"],[11,0.4434,0.1986,"Phase 2"],[12,0.3052,0.1638,"Phase 2"],[13,0.3242,0.162,"Undetermined"],[14,0.3422,0.1587,"Undetermined"],[15,0.3582,0.1561,"Undetermined"],[16,0.3714,0.1543,"Undetermined"],[17,0.3858,0.1525,"Undetermined"],[18,0.4022,0.1501,"Undetermined"],[19,0.4165,0.1476,"Undetermined"],[20,0.4305,0.1458,"Undetermined"],[21,0.4444,0.1439,"Undetermined"],[22,0.4585,0.1421,"Undetermined"],[23,0.4714,0.1404,"Undetermined"],[24,0.2972,0.1754,"Undetermined"],[25,0.123,0.2104,"Undetermined"],[26,0.1352,0.208,"Undetermined"],[27,0.1471,0.2068,"Undetermined"],[28,0.159,0.205,"Undetermined"],[29,0.1719,0.2035,"Undetermined"],[30,0.1855,0.2014,"Undetermined"],[31,0.199,0.1993,"Undetermined"],[32,0.2117,0.197,"Undetermined"],[33,0.2241,0.1957,"Undetermined"],[34,0.2368,0.194,"Undetermined"],[35,0.2496,0.1923,"Phase 2"],[36,0.2623,0.1907,"Phase 2"],[37,0.275,0.1889,"Phase 2"],[38,0.307,0.1837,"Phase 2"],[39,0.3203,0.1827,"Phase 2"],[40,0.332,0.1804,"Phase 1"],[41,0.3445,0.179,"Phase 1"],[42,0.3563,0.1773,"Phase 1"],[43,0.3675,0.1755,"Phase 1"],[44,0.1139,0.2273,"Phase 1"],[45,0.1163,0.2354,"Phase 1"],[46,0.4421,0.1647,"Phase 1"],[47,0.1233,0.2565,"Phase 1"],[48,0.1257,0.2675,"Phase 1"],[49,0.1313,0.2654,"Phase 1"],[50,0.1368,0.2633,"Phase 1"],[51,0.1424,0.2613,"Phase 1"],[52,0.1479,0.2592,"Phase 1"],[53,0.1535,0.2571,"Phase 1"],[54,0.159,0.255,"Phase 1"],[55,0.1646,0.2529,"Phase 1"],[56,0.1702,0.2508,"Phase 1"],[57,0.1757,0.2487,"Phase 1"],[58,0.1645,0.2394,"Phase 2"],[59,0.23,0.2277,"Phase 2"],[60,0.2955,0.2159,"Phase 2"],[61,0.361,0.2041,"Phase 2"],[62,0.3096,0.2176,"Phase 2"],[63,0.2581,0.2311,"Phase 2"],[64,0.2067,0.2446,"Phase 2"],[65,0.2085,0.2556,"Phase 2"],[66,0.212,0.2666,"Phase 2"],[67,0.2192,0.2649,"Phase 2"],[68,0.2263,0.2632,"Phase 2"],[69,0.2335,0.2615,"Phase 2"],[70,0.2407,0.2599,"Phase 2"],[71,0.2478,0.2582,"Phase 2"],[72,0.255,0.2565,"Phase 2"],[73,0.2622,0.2548,"Phase 2"],[74,0.2582,0.2413,"Phase 2"],[75,0.2547,0.2301,"Phase 2"],[76,0.2428,0.2208,"Phase 2"],[77,0.2523,0.2165,"Phase 2"],[78,0.2617,0.2123,"Phase 2"],[79,0.2711,0.2081,"Phase 2"],[80,0.28,0.2111,"Phase 2"],[81,0.289,0.2141,"Phase 2"],[82,0.2836,0.2264,"Phase 2"],[83,0.2868,0.2372,"Phase 2"],[84,0.2909,0.2506,"Phase 2"],[85,0.2942,0.2623,"Phase 2"],[86,0.3172,0.2639,"Phase 2"],[87,0.3402,0.2656,"Undetermined"],[88,0.3381,0.2558,"Undetermined"],[89,0.3358,0.2446,"Undetermined"],[90,0.3373,0.2368,"Undetermined"],[91,0.3388,0.2289,"Undetermined"],[93,0.3417,0.2132,"Undetermined"],[94,0.3432,0.2054,"Undetermined"],[95,0.3447,0.1975,"Undetermined"],[96,0.3489,0.2037,"Undetermined"],[98,0.3574,0.2159,"Undetermined"],[99,0.36,0.2268,"Undetermined"],[100,0.3632,0.2404,"Undetermined"],[101,0.3679,0.2516,"Undetermined"],[102,0.3762,0.2493,"Undetermined"],[103,0.3845,0.2471,"Undetermined"],[104,0.3928,0.2449,"Undetermined"],[105,0.4011,0.2426,"Undetermined"],[106,0.4094,0.2404,"Undetermined"],[107,0.4177,0.2382,"Undetermined"],[108,0.4116,0.2277,"Undetermined"],[109,0.4055,0.2173,"Undetermined"],[110,0.3994,0.2068,"Undetermined"],[111,0.4057,0.2003,"Undetermined"],[112,0.412,0.1938,"Undetermined"],[113,0.4229,0.1954,"Undetermined"],[114,0.4337,0.197,"Undetermined"],[115,0.4446,0.1986,"Undetermined"],[116,0.4388,0.2123,"Undetermined"],[117,0.442,0.2236,"Undetermined"],[118,0.4455,0.2342,"Undetermined"],[119,0.4511,0.2445,"Undetermined"],[120,0.463,0.2418,"Undetermined"],[121,0.4748,0.239,"Undetermined"],[122,0.4867,0.2363,"Undetermined"],[123,0.4986,0.2335,"Undetermined"],[124,0.4972,0.2225,"Undetermined"],[125,0.4945,0.2118,"Undetermined"],[126,0.4918,0.2016,"Undetermined"],[127,0.4915,0.2015,"Undetermined"],[128,0.4912,0.2014,"Undetermined"],[129,0.4908,0.2013,"Undetermined"],[130,0.4639,0.2646,"Undetermined"],[131,0.4639,0.2646,"Undetermined"],[132,0.4639,0.2646,"Undetermined"],[133,0.4653,0.2656,"Undetermined"],[134,0.4548,0.2667,"Undetermined"],[135,0.4442,0.2679,"Undetermined"],[136,0.4318,0.271,"Undetermined"],[137,0.4194,0.2742,"Undetermined"],[138,0.4079,0.2761,"Undetermined"],[139,0.397,0.2775,"Undetermined"],[140,0.386,0.279,"Undetermined"],[141,0.3751,0.2805,"Undetermined"],[142,0.3641,0.282,"Undetermined"],[143,0.3532,0.2835,"Undetermined"],[144,0.3422,0.2849,"Undetermined"],[145,0.3238,0.2876,"Phase 2"],[146,0.3054,0.2902,"Phase 2"],[147,0.287,0.2929,"Phase 2"],[148,0.2753,0.2936,"Phase 2"],[149,0.2637,0.2942,"Phase 1"],[150,0.252,0.2949,"Phase 1"],[151,0.2404,0.2971,"Phase 1"],[152,0.2289,0.2993,"Phase 1"],[153,0.2173,0.3015,"Phase 1"],[154,0.2058,0.3037,"Phase 1"],[155,0.1949,0.3053,"Phase 1"],[156,0.1841,0.3069,"Phase 1"],[157,0.1733,0.3085,"Phase 1"],[158,0.1625,0.3101,"Phase 1"],[159,0.1516,0.3117,"Phase 1"],[160,0.1694,0.3513,"Phase 1"],[161,0.1694,0.3513,"Phase 1"],[162,0.1694,0.3513,"Phase 1"],[163,0.1708,0.3523,"Phase 2"],[164,0.1758,0.362,"Phase 1"],[165,0.1828,0.3718,"Phase 1"],[166,0.1876,0.3805,"Phase 1"],[167,0.1957,0.3935,"Phase 1"],[168,0.4135,0.3959,"Phase 1"],[169,0.4135,0.3959,"Phase 1"],[170,0.4135,0.3959,"Phase 1"],[171,0.4135,0.3959,"Phase 1"],[172,0.3539,0.3828,"Phase 1"],[173,0.2943,0.3697,"Phase 1"],[174,0.2347,0.3566,"Phase 1"],[175,0.231,0.3461,"Phase 1"],[176,0.2209,0.3363,"Phase 2"],[177,0.2201,0.3237,"Phase 2"],[178,0.2307,0.3229,"Phase 2"],[179,0.2425,0.3251,"Phase 2"],[180,0.2542,0.3273,"Phase 2"],[181,0.2659,0.3295,"Phase 2"],[182,0.2607,0.3424,"Phase 1"],[183,0.2641,0.3532,"Phase 1"],[184,0.2676,0.3639,"Phase 1"],[185,0.2698,0.3746,"Phase 1"],[186,0.279,0.3777,"Phase 2"],[187,0.2881,0.3807,"Phase 2"],[188,0.2973,0.3838,"Phase 2"],[189,0.3065,0.3869,"Phase 2"],[190,0.3124,0.3789,"Phase 2"],[191,0.3183,0.3709,"Phase 2"],[192,0.3169,0.3602,"Phase 2"],[193,0.3146,0.3494,"Phase 2"],[194,0.3148,0.3396,"Phase 2"],[195,0.3143,0.3319,"Phase 2"],[196,0.3141,0.3243,"Phase 2"],[197,0.3189,0.3176,"Phase 2"],[198,0.3238,0.3108,"Phase 2"],[199,0.3567,0.3038,"Undetermined"],[200,0.376,0.3019,"Undetermined"],[201,0.3964,0.2984,"Undetermined"],[202,0.4153,0.2964,"Undetermined"],[203,0.4368,0.2937,"Undetermined"],[204,0.4604,0.29,"Undetermined"],[205,0.4801,0.2875,"Undetermined"],[206,0.5,0.284,"Undetermined"],[207,0.498,0.2854,"Undetermined"],[208,0.496,0.2869,"Undetermined"],[209,0.5031,0.3243,"Undetermined"],[210,0.5194,0.3255,"Undetermined"],[211,0.5213,0.3362,"Undetermined"],[212,0.524,0.347,"Undetermined"],[213,0.5267,0.3584,"Undetermined"],[214,0.5173,0.3622,"Undetermined"],[215,0.5078,0.3661,"Undetermined"],[216,0.4984,0.37,"Undetermined"],[217,0.4864,0.3695,"Undetermined"],[218,0.4761,0.364,"Undetermined"],[219,0.474,0.3532,"Undetermined"],[220,0.4722,0.3415,"Undetermined"],[221,0.4698,0.3295,"Undetermined"],[222,0.4723,0.3171,"Undetermined"],[223,0.4661,0.3081,"Undetermined"],[224,0.4552,0.309,"Undetermined"],[225,0.4566,0.3099,"Undetermined"],[226,0.4566,0.3099,"Undetermined"],[227,0.4442,0.331,"Undetermined"],[228,0.4385,0.3337,"Undetermined"],[229,0.4434,0.3452,"Undetermined"],[230,0.4376,0.3508,"Undetermined"],[231,0.4319,0.3563,"Undetermined"],[232,0.4261,0.3619,"Undetermined"],[233,0.4203,0.3674,"Undetermined"],[234,0.4146,0.373,"Undetermined"],[235,0.4088,0.3786,"Undetermined"],[236,0.3951,0.3714,"Undetermined"],[237,0.3921,0.3602,"Undetermined"],[238,0.3881,0.3504,"Undetermined"],[239,0.3849,0.3413,"Undetermined"],[240,0.3817,0.3322,"Undetermined"],[241,0.3797,0.324,"Undetermined"],[242,0.4149,0.3969,"Undetermined"],[243,0.4524,0.3926,"Undetermined"],[244,0.492,0.3886,"Undetermined"],[245,0.5242,0.3855,"Undetermined"],[246,0.5264,0.3989,"Undetermined"],[247,0.4957,0.4019,"Undetermined"],[248,0.4589,0.4058,"Undetermined"],[249,0.4221,0.4097,"Undetermined"],[250,0.3119,0.4045,"Phase 2"],[251,0.2739,0.408,"Phase 1"],[252,0.236,0.4116,"Phase 1"],[253,0.212,0.4146,"Phase 2"],[254,0.1771,0.4137,"Phase 2"],[255,0.144,0.4207,"Phase 2"],[256,0.1626,0.433,"Phase 2"],[257,0.2162,0.4272,"Phase 1"],[258,0.2426,0.4253,"Phase 1"],[259,0.2768,0.4216,"Phase 1"],[260,0.3135,0.4176,"Phase 2"],[261,0.1804,0.4532,"Phase 1"],[262,0.1593,0.4596,"Phase 1"],[263,0.1551,0.4736,"Phase 1"],[264,0.1581,0.4896,"Phase 1"],[265,0.1658,0.5022,"Phase 1"],[266,0.1818,0.5088,"Phase 1"],[267,0.1992,0.5041,"Phase 1"],[268,0.2133,0.4932,"Phase 1"],[269,0.2219,0.4831,"Phase 1"],[270,0.2238,0.4704,"Phase 1"],[271,0.2386,0.4578,"Phase 2"],[272,0.2532,0.4644,"Phase 2"],[273,0.2697,0.4704,"Phase 2"],[274,0.2618,0.4859,"Phase 2"],[275,0.2448,0.4941,"Phase 2"],[276,0.2353,0.5042,"Phase 2"],[277,0.2372,0.519,"Phase 2"],[278,0.2391,0.5338,"Phase 2"],[279,0.2571,0.541,"Phase 2"],[280,0.2764,0.5416,"Phase 2"],[281,0.2933,0.5337,"Phase 2"],[282,0.3022,0.519,"Phase 2"],[283,0.2992,0.5065,"Phase 2"],[284,0.2963,0.494,"Phase 2"],[285,0.3048,0.4777,"Phase 2"],[286,0.3214,0.4785,"Phase 2"],[287,0.3398,0.4796,"Phase 2"],[288,0.3428,0.496,"Phase 2"],[289,0.3368,0.5084,"Phase 2"],[290,0.3308,0.5208,"Phase 2"],[291,0.3383,0.5338,"Phase 2"],[292,0.3524,0.5429,"Phase 2"],[293,0.3852,0.5408,"Undetermined"],[294,0.3981,0.5283,"Undetermined"],[295,0.3922,0.5152,"Undetermined"],[296,0.3862,0.5021,"Undetermined"],[297,0.3803,0.489,"Undetermined"],[298,0.3744,0.4759,"Undetermined"],[299,0.3911,0.4718,"Undetermined"],[300,0.407,0.4685,"Undetermined"],[301,0.4199,0.4814,"Undetermined"],[302,0.4197,0.4948,"Undetermined"],[303,0.4268,0.5063,"Undetermined"],[304,0.4422,0.5199,"Undetermined"],[305,0.4601,0.5226,"Undetermined"],[306,0.4792,0.5181,"Undetermined"],[307,0.5031,0.4635,"Undetermined"],[308,0.5061,0.4649,"Undetermined"],[309,0.5091,0.4662,"Undetermined"],[310,0.47,0.4709,"Undetermined"],[311,0.4525,0.4663,"Undetermined"],[312,0.4377,0.4532,"Undetermined"],[313,0.4502,0.4443,"Undetermined"],[314,0.4629,0.4339,"Undetermined"],[315,0.4818,0.4434,"Undetermined"],[316,0.4914,0.4551,"Undetermined"],[317,0.5031,0.4635,"Undetermined"],[318,0.5238,0.4695,"Undetermined"],[319,0.5425,0.4616,"Undetermined"],[320,0.5405,0.4483,"Undetermined"],[321,0.5386,0.435,"Undetermined"],[322,0.5366,0.4217,"Undetermined"],[323,0.5146,0.4185,"Undetermined"],[324,0.4975,0.4199,"Undetermined"],[325,0.5572,0.4879,"Undetermined"],[326,0.5508,0.5083,"Undetermined"],[327,0.5319,0.5247,"Undetermined"],[328,0.5129,0.5411,"Undetermined"],[329,0.4815,0.5509,"Undetermined"],[330,0.4449,0.5538,"Undetermined"],[331,0.4135,0.5623,"Undetermined"],[332,0.4003,0.5817,"Undetermined"],[333,0.4425,0.5835,"Undetermined"],[334,0.4771,0.5806,"Undetermined"],[335,0.5099,0.5756,"Undetermined"],[336,0.5395,0.5631,"Undetermined"],[337,0.5627,0.5499,"Undetermined"],[338,0.5675,0.531,"Undetermined"],[339,0.5677,0.5742,"Undetermined"],[340,0.5702,0.5863,"Undetermined"],[341,0.5727,0.5984,"Undetermined"],[342,0.5478,0.6064,"Undetermined"],[343,0.5139,0.6158,"Undetermined"],[344,0.4792,0.6172,"Undetermined"],[345,0.4454,0.614,"Undetermined"],[346,0.41,0.6118,"Undetermined"],[357,0.5773,0.626,"Undetermined"],[358,0.5895,0.6467,"Undetermined"],[359,0.5944,0.6679,"Undetermined"],[360,0.5994,0.6892,"Undetermined"],[363,0.4033,0.632,"Undetermined"],[364,0.4362,0.633,"Undetermined"],[365,0.4605,0.6366,"Undetermined"],[366,0.3721,0.5888,"Phase 1"],[367,0.3493,0.5847,"Phase 1"],[368,0.3388,0.5735,"Phase 1"],[369,0.3193,0.568,"Phase 1"],[370,0.3017,0.568,"Phase 1"],[371,0.2844,0.5718,"Phase 1"],[372,0.2654,0.5726,"Phase 1"],[373,0.2464,0.5735,"Phase 1"],[374,0.2306,0.5691,"Phase 1"],[375,0.2162,0.5628,"Phase 1"],[376,0.2036,0.5568,"Phase 1"],[377,0.189,0.5482,"Phase 1"],[378,0.177,0.5367,"Phase 1"],[379,0.1649,0.5252,"Phase 1"],[380,0.1724,0.5647,"Phase 1"],[381,0.1757,0.5777,"Phase 1"],[382,0.1915,0.5861,"Phase 1"],[383,0.2074,0.5945,"Phase 1"],[384,0.2216,0.5991,"Phase 1"],[385,0.2389,0.6005,"Phase 1"],[386,0.2562,0.6018,"Phase 1"],[387,0.2735,0.6032,"Phase 1"],[388,0.2502,0.6041,"Phase 1"],[389,0.2268,0.605,"Phase 1"],[390,0.2035,0.606,"Phase 1"],[391,0.1802,0.6069,"Phase 1"],[392,0.1832,0.6203,"Phase 1"],[393,0.1999,0.6293,"Phase 1"],[394,0.2167,0.63,"Phase 1"],[395,0.2348,0.6303,"Phase 1"],[396,0.2508,0.633,"Phase 1"],[397,0.2729,0.633,"Phase 1"],[398,0.2888,0.6322,"Phase 1"],[399,0.3056,0.6303,"Phase 1"],[400,0.321,0.6275,"Phase 1"],[401,0.3367,0.6196,"Phase 1"],[402,0.3538,0.6196,"Phase 1"],[403,0.3688,0.6175,"Phase 1"],[404,0.3702,0.6366,"Phase 1"],[405,0.3424,0.642,"Phase 1"],[406,0.3174,0.648,"Phase 1"],[407,0.2956,0.6526,"Phase 1"],[408,0.3064,0.6639,"Phase 1"],[409,0.3172,0.6753,"Phase 1"],[410,0.3415,0.6687,"Phase 1"],[411,0.368,0.661,"Phase 1"],[412,0.414,0.6553,"Undetermined"],[413,0.4433,0.6571,"Undetermined"],[414,0.4712,0.6489,"Undetermined"],[416,0.2872,0.6888,"Phase 2"],[417,0.3058,0.694,"Phase 2"],[418,0.3266,0.6949,"Phase 2"],[419,0.3442,0.6897,"Phase 2"],[420,0.3606,0.6841,"Phase 2"],[421,0.3788,0.6788,"Phase 2"],[422,0.4203,0.6761,"Undetermined"],[423,0.4485,0.6798,"Undetermined"],[425,0.5986,0.7136,"Undetermined"],[427,0.568,0.7191,"Undetermined"],[428,0.5459,0.704,"Undetermined"],[429,0.5483,0.6838,"Undetermined"],[430,0.5668,0.6686,"Undetermined"],[431,0.5483,0.6544,"Undetermined"],[432,0.5252,0.6695,"Undetermined"],[433,0.5005,0.6727,"Undetermined"],[434,0.4983,0.6534,"Undetermined"],[435,0.5189,0.636,"Undetermined"],[436,0.5486,0.6293,"Undetermined"],[438,0.501,0.91,"Undetermined"],[439,0.5337,0.906,"Undetermined"],[440,0.5657,0.9026,"Undetermined"],[441,0.5992,0.9042,"Undetermined"],[442,0.6317,0.9015,"Undetermined"],[443,0.3925,0.1724,"Undetermined"],[444,0.3921,0.1724,"Undetermined"],[446,0.2704,0.6743,"Phase 1"],[447,0.2628,0.6612,"Phase 1"],[448,0.243,0.6585,"Phase 1"],[449,0.2232,0.6557,"Phase 1"],[450,0.2034,0.653,"Phase 1"],[451,0.1937,0.6656,"Phase 1"],[452,0.1934,0.6822,"Phase 1"],[453,0.2034,0.695,"Phase 1"],[454,0.2235,0.698,"Phase 1"],[455,0.2436,0.7011,"Phase 1"],[456,0.3323,0.7728,"Phase 2"],[457,0.3241,0.7747,"Phase 2"],[458,0.316,0.7766,"Phase 2"],[459,0.3079,0.7784,"Phase 2"],[460,0.3122,0.8197,"Phase 2"],[461,0.3136,0.8207,"Phase 2"],[462,0.3173,0.8396,"Phase 2"],[463,0.3352,0.8539,"Phase 2"],[464,0.3973,0.9066,"Phase 2"],[465,0.3867,0.9068,"Phase 2"],[466,0.4073,0.1697,"Undetermined"],[467,0.4199,0.1678,"Undetermined"],[468,0.4326,0.1664,"Undetermined"],[469,0.4431,0.1648,"Undetermined"],[472,0.3121,0.9084,"Phase 1"],[473,0.3015,0.9087,"Phase 1"],[474,0.2908,0.9089,"Phase 1"],[475,0.2659,0.9109,"Phase 1"],[476,0.2404,0.908,"Phase 1"],[477,0.2346,0.8939,"Phase 1"],[478,0.2289,0.8798,"Phase 1"],[479,0.2512,0.8776,"Phase 1"],[480,0.2735,0.8754,"Phase 1"],[481,0.2937,0.867,"Phase 1"],[482,0.2932,0.8427,"Phase 1"],[483,0.291,0.8421,"Phase 1"],[484,0.2875,0.8243,"Phase 1"],[485,0.2534,0.8453,"Phase 1"],[486,0.226,0.8436,"Phase 1"],[487,0.2201,0.8261,"Phase 1"],[488,0.2173,0.8132,"Phase 1"],[489,0.2217,0.798,"Phase 1"],[490,0.2409,0.7949,"Phase 1"],[491,0.2636,0.7818,"Phase 1"],[492,0.2794,0.7889,"Phase 1"],[493,0.2772,0.8007,"Phase 1"],[494,0.2647,0.8082,"Phase 1"],[495,0.2518,0.8123,"Phase 1"],[496,0.2258,0.772,"Phase 1"],[497,0.2182,0.7701,"Phase 1"],[498,0.2072,0.7565,"Phase 1"],[499,0.204,0.7433,"Phase 1"],[500,0.2134,0.7311,"Phase 1"],[501,0.2228,0.7189,"Phase 1"],[502,0.2384,0.7339,"Phase 1"],[503,0.2539,0.749,"Phase 1"],[504,0.4878,0.6944,"Undetermined"],[505,0.5126,0.7078,"Undetermined"],[506,0.5307,0.7229,"Undetermined"],[507,0.5596,0.7394,"Undetermined"],[508,0.5928,0.7415,"Undetermined"],[509,0.5915,0.758,"Undetermined"],[510,0.5903,0.7746,"Undetermined"],[511,0.5707,0.7943,"Undetermined"],[512,0.5664,0.8157,"Undetermined"],[513,0.5568,0.844,"Undetermined"],[514,0.5451,0.8639,"Undetermined"],[515,0.5278,0.8814,"Undetermined"],[523,0.5064,0.8904,"Undetermined"],[524,0.4908,0.8812,"Undetermined"],[525,0.498,0.8667,"Undetermined"],[526,0.517,0.8458,"Undetermined"],[527,0.5282,0.8224,"Undetermined"],[528,0.5308,0.8009,"Undetermined"],[529,0.5306,0.7819,"Undetermined"],[530,0.5241,0.7652,"Undetermined"],[531,0.5096,0.7487,"Undetermined"],[532,0.4951,0.7323,"Undetermined"],[533,0.4723,0.7155,"Undetermined"],[534,0.4498,0.7149,"Undetermined"],[535,0.4297,0.6997,"Undetermined"],[536,0.3937,0.6991,"Phase 2"],[537,0.376,0.7038,"Phase 2"],[538,0.3599,0.7126,"Phase 2"],[539,0.3446,0.7255,"Phase 2"],[540,0.3312,0.7367,"Phase 2"],[541,0.3363,0.7374,"Undetermined"],[542,0.3414,0.7381,"Phase 2"],[543,0.3465,0.7388,"Phase 2"],[544,0.3576,0.7894,"Phase 2"],[545,0.3644,0.8027,"Phase 2"],[546,0.3654,0.817,"Phase 2"],[547,0.3665,0.8313,"Phase 2"],[548,0.3811,0.8393,"Phase 2"],[549,0.3869,0.842,"Phase 2"],[550,0.3945,0.8669,"Phase 2"],[551,0.393,0.8763,"Phase 2"],[552,0.3916,0.8858,"Phase 2"],[553,0.3902,0.8952,"Phase 2"],[554,0.4136,0.8952,"Undetermined"],[555,0.4191,0.8799,"Undetermined"],[556,0.4277,0.8613,"Undetermined"],[557,0.4468,0.8421,"Undetermined"],[558,0.4446,0.8404,"Undetermined"],[559,0.4424,0.8387,"Undetermined"],[560,0.4336,0.7509,"Undetermined"],[561,0.4387,0.7516,"Undetermined"],[562,0.4079,0.7461,"Undetermined"],[563,0.4118,0.766,"Undetermined"],[564,0.4314,0.8305,"Phase 2"],[565,0.4292,0.8288,"Phase 2"],[566,0.427,0.8272,"Phase 2"],[567,0.4186,0.8265,"Phase 2"],[568,0.4101,0.8259,"Phase 2"],[569,0.4566,0.1629,"Phase 2"],[570,0.4537,0.1639,"Phase 2"],[571,0.4508,0.1649,"Phase 2"],[572,0.4017,0.8252,"Phase 2"],[573,0.3916,0.81,"Phase 2"],[574,0.404,0.8081,"Phase 2"],[575,0.3698,0.7661,"Phase 2"],[576,0.3877,0.7511,"Phase 2"],[577,0.4056,0.736,"Phase 2"],[578,0.4234,0.721,"Undetermined"],[579,0.4546,0.7304,"Undetermined"],[580,0.4756,0.7452,"Undetermined"],[581,0.4911,0.7633,"Undetermined"],[582,0.5033,0.7927,"Undetermined"],[583,0.4988,0.8133,"Undetermined"],[584,0.4942,0.8338,"Undetermined"],[585,0.48,0.8534,"Undetermined"],[586,0.4609,0.8745,"Undetermined"],[587,0.4698,0.8964,"Undetermined"],[596,0.5766,0.8794,"Undetermined"],[597,0.5799,0.8569,"Undetermined"],[598,0.5852,0.8183,"Undetermined"],[599,0.5932,0.8156,"Undetermined"],[600,0.596,0.7962,"Undetermined"],[601,0.6164,0.7909,"Undetermined"],[602,0.6225,0.8048,"Undetermined"],[603,0.6285,0.8188,"Undetermined"],[605,0.632,0.8404,"Undetermined"],[606,0.6396,0.8657,"Undetermined"],[607,0.6324,0.8813,"Undetermined"],[608,0.6082,0.8842,"Undetermined"],[615,0.292,0.887,"Phase 1"],[616,0.2492,0.8623,"Phase 1"],[617,0.3165,0.2099,"Undetermined"],[618,0.3179,0.2109,"Undetermined"],[620,0.3349,0.9138,"Phase 2"]];
+
+const STATUS_STYLE = {
+  'Undelivered':    {shape:'circle', color:'var(--c-undelivered)'},
+  'Unbuilt':        {shape:'circle', color:'var(--c-unbuilt)'},
+  'Concrete Work':  {shape:'circle', color:'var(--c-concrete)'},
+  'Internal Finish':{shape:'circle', color:'var(--c-finish)'},
+  'Delivered':      {shape:'star',   color:'#800080'}
+};
+const STROKE_W = 2.5;
+
+let unitState = {};
+DEFAULT_UNITS.forEach(u => { unitState[u[0]] = {x:u[1], y:u[2], phase:u[3], status:'Undelivered'}; });
+
+let selectedPhase = 'ALL';
+let zoom = 1;
+let activeUnit = null;
+let autoRefreshTimer = null;
+let editMode = false;
+let pendingChanges = {};
+let dragNum = null;
+
+const el = id => document.getElementById(id);
+
+function starPoints(cx, cy, rOuter, rInner){
+  const pts = [];
+  for(let i=0;i<10;i++){
+    const r = i%2===0 ? rOuter : rInner;
+    const a = -Math.PI/2 + i*Math.PI/5;
+    pts.push((cx+r*Math.cos(a)).toFixed(2) + ',' + (cy+r*Math.sin(a)).toFixed(2));
+  }
+  return pts.join(' ');
+}
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+function makeShapeSVG(size){
+  const svg = document.createElementNS(SVGNS,'svg');
+  svg.setAttribute('viewBox','0 0 20 20');
+  svg.setAttribute('width', size); svg.setAttribute('height', size);
+  const circle = document.createElementNS(SVGNS,'circle');
+  circle.setAttribute('cx','10'); circle.setAttribute('cy','10'); circle.setAttribute('r','7.5');
+  circle.setAttribute('fill','none'); circle.setAttribute('stroke-width', STROKE_W);
+  const star = document.createElementNS(SVGNS,'polygon');
+  star.setAttribute('points', starPoints(10,10,8.6,3.6));
+  star.setAttribute('fill','none'); star.setAttribute('stroke-width', STROKE_W);
+  svg.appendChild(circle); svg.appendChild(star);
+  return {svg, circle, star};
+}
+
+function legendSwatch(container, shape, color, label){
+  const {svg, circle, star} = makeShapeSVG(16);
+  circle.setAttribute('stroke', color); star.setAttribute('stroke', color);
+  if(shape==='circle') star.style.display='none'; else circle.style.display='none';
+  container.appendChild(svg);
+  const span = document.createElement('span');
+  span.textContent = label;
+  container.appendChild(span);
+}
+
+function buildLegend(){
+  legendSwatch(el('legendUndelivered'), 'circle', getComputedStyle(document.documentElement).getPropertyValue('--c-undelivered').trim(), 'Undelivered');
+  legendSwatch(el('legendUnbuilt'), 'circle', getComputedStyle(document.documentElement).getPropertyValue('--c-unbuilt').trim(), 'Unbuilt');
+  legendSwatch(el('legendConcrete'), 'circle', getComputedStyle(document.documentElement).getPropertyValue('--c-concrete').trim(), 'Concrete work');
+  legendSwatch(el('legendFinish'), 'circle', getComputedStyle(document.documentElement).getPropertyValue('--c-finish').trim(), 'Internal finish');
+  legendSwatch(el('legendDelivered'), 'star', '#800080', 'Delivered');
+}
+
+function showError(msg){ const b=el('errBanner'); b.textContent=msg; b.style.display='block'; }
+function clearBanner(){ el('errBanner').style.display='none'; }
+function setConn(state, text){
+  const colors = {ok:'var(--c-delivered)', error:'#B5473C', loading:'var(--teal)'};
+  el('connDot').style.background = colors[state] || 'var(--c-unbuilt)';
+  el('connTxt').innerHTML = text;
+}
+
+function buildBatchUrl(){
+  return `https://sheets.googleapis.com/v4/spreadsheets/${CC_SHEET_ID}/values:batchGet?ranges=Units!A:C&ranges=Position!A:C&key=${encodeURIComponent(CC_API_KEY)}&_=${Date.now()}`;
+}
+
+function refreshPhaseOptions(){
+  const sel = el('phaseSelect');
+  const current = sel.value;
+  const phasesInUse = Array.from(new Set(Object.values(unitState).map(u=>u.phase))).sort();
+  sel.innerHTML = '<option value="ALL">All phases</option>';
+  phasesInUse.forEach(p=>{
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    sel.appendChild(opt);
+  });
+  if(phasesInUse.includes(current)) sel.value = current; else selectedPhase = 'ALL';
+}
+
+async function loadFromSheet(){
+  setConn('loading', 'Loading from Google Sheet…');
+  try{
+    let res;
+    try{ res = await fetch(buildBatchUrl(), {cache:'no-store'}); }
+    catch(e){ throw new Error('NETWORK: ' + (e && e.message ? e.message : e)); }
+    let body;
+    try{ body = await res.json(); }
+    catch(e){ throw new Error('BADRESPONSE: HTTP ' + res.status); }
+    if(!res.ok){
+      const msg = (body && body.error && body.error.message) || ('HTTP ' + res.status);
+      throw new Error('APIERROR: ' + msg);
+    }
+    const ranges = body.valueRanges || [];
+    const unitsRange = ranges.find(r => r.range && r.range.startsWith('Units'));
+    const posRange = ranges.find(r => r.range && r.range.startsWith('Position'));
+
+    if(unitsRange && unitsRange.values && unitsRange.values.length > 1){
+      const vals = unitsRange.values;
+      const headers = vals[0].map(h=>String(h).trim().toLowerCase());
+      const cNum = headers.findIndex(h=>/^unit/.test(h));
+      const cPhase = headers.findIndex(h=>/^phase/.test(h));
+      const cStatus = headers.findIndex(h=>/^status/.test(h));
+      for(let i=1;i<vals.length;i++){
+        const row = vals[i];
+        const num = Number(row[cNum]);
+        if(Number.isNaN(num) || !unitState[num]) continue;
+        if(cPhase !== -1 && row[cPhase] !== undefined && String(row[cPhase]).trim() !== ''){
+          unitState[num].phase = String(row[cPhase]).trim();
+        }
+        const s = cStatus!==-1 ? String(row[cStatus]||'').trim() : '';
+        unitState[num].status = STATUS_STYLE[s] ? s : 'Undelivered';
+      }
+    } else {
+      throw new Error('NOROWS: Units sheet returned no rows');
+    }
+    if(posRange && posRange.values && posRange.values.length > 1){
+      const vals = posRange.values;
+      const headers = vals[0].map(h=>String(h).trim().toLowerCase());
+      const cNum = headers.findIndex(h=>/^unit/.test(h));
+      const cX = headers.findIndex(h=>/^x/.test(h));
+      const cY = headers.findIndex(h=>/^y/.test(h));
+      for(let i=1;i<vals.length;i++){
+        const row = vals[i];
+        const num = Number(row[cNum]);
+        if(Number.isNaN(num) || !unitState[num]) continue;
+        if(cX !== -1 && row[cX] !== undefined && row[cX] !== ''){
+          const xv = Number(row[cX]); if(!Number.isNaN(xv)) unitState[num].x = xv/100;
+        }
+        if(cY !== -1 && row[cY] !== undefined && row[cY] !== ''){
+          const yv = Number(row[cY]); if(!Number.isNaN(yv)) unitState[num].y = yv/100;
+        }
+      }
+    }
+
+    refreshPhaseOptions();
+    setConn('ok', `Connected — last updated ${new Date().toLocaleTimeString()}`);
+    clearBanner();
+    render();
+  }catch(err){
+    setConn('error', 'Could not load the sheet.');
+    const raw = (err && err.message) ? err.message : String(err);
+    let friendly = 'Couldn\'t reach that sheet.';
+    if(/^NETWORK:/.test(raw)) friendly = 'The browser blocked or couldn\'t make the request (often CORS or connectivity).';
+    else if(/API key not valid|API_KEY_INVALID/i.test(raw)) friendly = 'That API key was rejected.';
+    else if(/permission|caller does not have/i.test(raw)) friendly = 'Couldn\'t read that sheet — check sharing is "Anyone with the link".';
+    else if(/Unable to parse range/i.test(raw)) friendly = 'Couldn\'t find "Units" or "Position" tabs — check tab names exactly.';
+    else if(/^NOROWS:/.test(raw)) friendly = 'Connected, but the Units sheet looked empty.';
+    showError(friendly + ' [Details: ' + raw.replace(/^[A-Z]+:\s*/, '') + ']');
+  }
+}
+
+function buildMarkers(){
+  const content = el('mapcontent');
+  DEFAULT_UNITS.forEach(u=>{
+    const num = u[0];
+    const {svg, circle, star} = makeShapeSVG(11);
+    svg.classList.add('marker');
+    svg.dataset.num = num;
+    svg.style.position = 'absolute';
+    svg.style.transform = 'translate(-50%,-50%)';
+    svg.addEventListener('mouseenter', ()=>{ if(!editMode) selectUnit(num); });
+    svg.addEventListener('click', ()=>{ if(!editMode) selectUnit(num); });
+    svg.addEventListener('pointerdown', (ev)=>onMarkerPointerDown(ev, num));
+    svg.title = 'Unit ' + num;
+    svg._circle = circle; svg._star = star;
+    content.appendChild(svg);
+  });
+}
+
+function onMarkerPointerDown(ev, num){
+  if(!editMode) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  const marker = ev.currentTarget;
+  marker.setPointerCapture(ev.pointerId);
+  dragNum = num;
+  selectUnit(num);
+
+  function onMove(mv){
+    const content = el('mapcontent');
+    const rect = content.getBoundingClientRect();
+    let xf = (mv.clientX - rect.left) / rect.width;
+    let yf = (mv.clientY - rect.top) / rect.height;
+    xf = Math.min(1, Math.max(0, xf));
+    yf = Math.min(1, Math.max(0, yf));
+    unitState[num].x = xf;
+    unitState[num].y = yf;
+    marker.style.left = (xf*100)+'%';
+    marker.style.top = (yf*100)+'%';
+  }
+  function onUp(up){
+    marker.releasePointerCapture(up.pointerId);
+    marker.removeEventListener('pointermove', onMove);
+    marker.removeEventListener('pointerup', onUp);
+    marker.removeEventListener('pointercancel', onUp);
+    pendingChanges[num] = { x: Math.round(unitState[num].x*10000)/100, y: Math.round(unitState[num].y*10000)/100 };
+    dragNum = null;
+    updateSaveButton();
+  }
+  marker.addEventListener('pointermove', onMove);
+  marker.addEventListener('pointerup', onUp);
+  marker.addEventListener('pointercancel', onUp);
+}
+
+function updateSaveButton(){
+  const count = Object.keys(pendingChanges).length;
+  const btn = el('btnSavePositions');
+  btn.disabled = count === 0;
+  btn.style.opacity = count === 0 ? '0.5' : '1';
+  btn.textContent = count === 0 ? 'Save positions' : `Save positions (${count})`;
+  el('pendingLine').textContent = count === 0 ? '' : 'Unsaved: ' + Object.keys(pendingChanges).join(', ');
+}
+
+async function savePositions(){
+  const count = Object.keys(pendingChanges).length;
+  if(count === 0) return;
+  if(typeof CC_WRITE_URL === 'undefined' || !CC_WRITE_URL || CC_WRITE_URL.indexOf('PASTE_YOUR') === 0){
+    showError('Position saving isn\'t set up yet — add CC_WRITE_URL and CC_WRITE_TOKEN to config.js (see Setup_Instructions.md).');
+    return;
+  }
+  const btn = el('btnSavePositions');
+  const oldText = btn.textContent;
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  const updates = Object.keys(pendingChanges).map(num => ({ num: Number(num), x: pendingChanges[num].x, y: pendingChanges[num].y }));
+  try{
+    const res = await fetch(CC_WRITE_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({ token: CC_WRITE_TOKEN, updates: updates })
+    });
+    const body = await res.json();
+    if(!body.success) throw new Error(body.error || 'Unknown error saving');
+    pendingChanges = {};
+    updateSaveButton();
+    clearBanner();
+  }catch(err){
+    showError('Couldn\'t save positions: ' + (err && err.message ? err.message : err));
+    btn.textContent = oldText; btn.disabled = false;
+  }
+}
+
+function selectUnit(num){
+  activeUnit = num;
+  const st = unitState[num];
+  if(!st) return;
+  el('unitPanel').classList.remove('hidden');
+  el('unitPanelTitle').textContent = 'Unit ' + num;
+  el('unitPhaseLine').textContent = 'Phase: ' + st.phase;
+  const s = el('unitStatusLine');
+  s.textContent = st.status;
+  s.style.color = STATUS_STYLE[st.status].color.startsWith('var') ? '' : STATUS_STYLE[st.status].color;
+  render();
+}
+
+function jumpToUnit(num){
+  const st = unitState[num];
+  if(!st){ showError(`Unit ${num} isn't on this plan.`); return; }
+  clearBanner();
+  selectUnit(num);
+  requestAnimationFrame(()=>{
+    const vp = el('mapwrap'), content = el('mapcontent');
+    const targetX = st.x*content.offsetWidth - vp.clientWidth/2;
+    const targetY = st.y*content.offsetHeight - vp.clientHeight/2;
+    vp.scrollTo({left:Math.max(0,targetX), top:Math.max(0,targetY), behavior:'smooth'});
+  });
+}
+
+function render(){
+  const nums = Object.keys(unitState).map(Number);
+  const total = nums.length;
+  const delivered = nums.filter(n=>unitState[n].status==='Delivered').length;
+  const pct = total ? Math.round(delivered/total*100) : 0;
+  el('statTotal').textContent = total;
+  el('statDelivered').textContent = delivered;
+  el('statPct').textContent = pct+'%';
+
+  if(selectedPhase !== 'ALL'){
+    const inPhase = nums.filter(n=>unitState[n].phase===selectedPhase);
+    const del = inPhase.filter(n=>unitState[n].status==='Delivered').length;
+    el('phaseStatLine').textContent = `${del} / ${inPhase.length} delivered`;
+  } else {
+    el('phaseStatLine').textContent = '';
+  }
+
+  const contentWidth = 900*zoom;
+  const contentHeight = contentWidth * (15940/11024);
+  el('mapcontent').style.width = contentWidth+'px';
+  el('mapcontent').style.height = contentHeight+'px';
+  el('zoomVal').textContent = Math.round(zoom*100)+'%';
+
+  document.querySelectorAll('.marker').forEach(m=>{
+    const num = Number(m.dataset.num);
+    const st = unitState[num];
+    if(!st) return;
+    const style = STATUS_STYLE[st.status];
+    const dimmed = selectedPhase !== 'ALL' && st.phase !== selectedPhase;
+    const isActive = activeUnit === num;
+    const size = isActive ? 22 : 11;
+
+    m.style.left = (st.x*100)+'%';
+    m.style.top = (st.y*100)+'%';
+    m.setAttribute('width', size); 
+    m.setAttribute('height', size);
+    m.style.opacity = dimmed ? 0.15 : 1;
+    m.classList.toggle('active', isActive);
+
+    const showStar = style.shape === 'star';
+    m._circle.style.display = showStar ? 'none' : '';
+    m._star.style.display = showStar ? '' : 'none';
+
+    if (isActive) {
+      m._circle.setAttribute('stroke', '#FF0000');
+      m._circle.setAttribute('fill', 'rgba(255, 165, 0, 0.5)');
+      
+      m._star.setAttribute('stroke', '#FF0000');
+      m._star.setAttribute('fill', 'rgba(255, 165, 0, 0.5)');
+    } else {
+      m._circle.setAttribute('stroke', style.color);
+      m._circle.setAttribute('fill', 'none');
+
+      m._star.setAttribute('stroke', style.color);
+      m._star.setAttribute('fill', 'none');
+    }
+  });
+}
+
+function init(){
+  if(typeof CC_SHEET_ID === 'undefined' || typeof CC_API_KEY === 'undefined' ||
+     !CC_SHEET_ID || !CC_API_KEY ||
+     CC_SHEET_ID.indexOf('PASTE_YOUR') === 0 || CC_API_KEY.indexOf('PASTE_YOUR') === 0){
+    el('mainApp').classList.add('hidden');
+    el('connbar').classList.add('hidden');
+    el('notConfigured').classList.remove('hidden');
+    return;
+  }
+
+  buildLegend();
+  buildMarkers();
+  refreshPhaseOptions();
+  render();
+
+  const editingEnabled = (typeof CC_ENABLE_POSITION_EDITING !== 'undefined') && CC_ENABLE_POSITION_EDITING === true;
+  if(!editingEnabled){
+    el('positionsPanel').classList.add('hidden');
+  }
+
+  el('btnRefresh').addEventListener('click', loadFromSheet);
+  el('editToggle').addEventListener('change', e=>{
+    editMode = e.target.checked;
+    el('mapcontent').classList.toggle('edit-mode', editMode);
+  });
+  el('btnSavePositions').addEventListener('click', savePositions);
+  el('btnGo').addEventListener('click', ()=>{
+    const n = Number(el('searchInput').value.trim());
+    if(!el('searchInput').value.trim() || Number.isNaN(n)){ showError('Enter a unit number to jump to it.'); return; }
+    jumpToUnit(n);
+  });
+  el('searchInput').addEventListener('keydown', e=>{ if(e.key==='Enter') el('btnGo').click(); });
+  el('phaseSelect').addEventListener('change', e=>{ selectedPhase = e.target.value; render(); });
+  el('zoomIn').addEventListener('click', ()=>{ zoom = Math.min(4, Math.round((zoom+0.5)*100)/100); render(); });
+  el('zoomOut').addEventListener('click', ()=>{ zoom = Math.max(0.5, Math.round((zoom-0.5)*100)/100); render(); });
+  el('zoomReset').addEventListener('click', ()=>{ zoom = 1; render(); });
+
+  loadFromSheet();
+  autoRefreshTimer = setInterval(loadFromSheet, 5*60*1000);
+}
+
+init();
+</script>
+</body>
+</html>
