@@ -5,15 +5,15 @@
 // contents anywhere public — your API key and write token live here.
 // ============================================================
 
-const CC_SHEET_ID = "1EeraXKDZslZrwhpqNQx3RqsKJtHsSrxP4NrObnjG7s4";
+const CC_SHEET_ID = "1l9DauqoTMDLS1hLyFCyDZ3NHG03jd0oybOQxnKp93M8";
 
-const CC_API_KEY  = "AIzaSyD_xr1_5S5XITxz5WC5c7DSCeYRCakTERQ";
+const CC_API_KEY  = "AIzaSyAjbArTXZ9-CLKU_fkTIPfZ8XAzXgmxPJ4";
 
 // For drag-and-drop position saving (optional — leave the two
 // placeholders below as-is if you don't want this feature; the
 // site still works fine for viewing without it, just without the
 // "Save positions" button working).
-const CC_WRITE_URL   = "https://script.google.com/macros/s/AKfycbwea7BbFhlgup3U1Ui-UJkRdBO0DyJoxTa2b4qQqvEe7ef6YQ3h9zeOKIJaC8hWUK4Mtg/exec";
+const CC_WRITE_URL   = "https://script.google.com/macros/s/AKfycbxgPs0yQ44esRCwgGIwXQdtY4usg_ea3Ag_DbeHbk10q3_4hmms2dZvezQpO5Xp_LOXsQ/exec";
 const CC_WRITE_TOKEN = "ahmed";
 
 // Set to false to hide position-editing entirely from every visitor
