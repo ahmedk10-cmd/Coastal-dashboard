@@ -24,10 +24,16 @@
   .brand .name{font-size:26px;font-weight:700;color:var(--teal);letter-spacing:.3px;}
   .brand .place{font-size:12px;letter-spacing:3px;color:#9FB4B1;text-transform:uppercase;}
   .subtitle{font-size:14px;color:#C9D3D1;margin-top:2px;}
-  .stats{display:flex;gap:10px;flex-wrap:wrap;}
-  .stat{background:rgba(255,255,255,.06);border-radius:8px;padding:6px 14px;text-align:center;min-width:76px;}
-  .stat .val{font-size:19px;font-weight:600;}
-  .stat .lbl{font-size:10.5px;color:#9FB4B1;text-transform:uppercase;letter-spacing:1px;}
+  .stats{display:flex;gap:7px;flex-wrap:wrap;align-items:center;}
+  .stat{background:rgba(255,255,255,.06);border-radius:7px;padding:4px 9px;text-align:center;min-width:54px;}
+  .stat .val{font-size:15px;font-weight:600;}
+  .stat .lbl{font-size:8.5px;color:#9FB4B1;text-transform:uppercase;letter-spacing:0.6px;}
+
+  .sea-widget{background:rgba(180,40,35,0.85);border-radius:12px;padding:12px 26px;text-align:center;min-width:152px;cursor:pointer;transition:background 0.25s ease;user-select:none;}
+  .sea-widget.open{background:rgba(31,127,168,0.9);}
+  .sea-widget .sea-icon{margin-bottom:2px;}
+  .sea-widget .sea-label{font-size:20px;font-weight:700;color:#fff;letter-spacing:0.5px;}
+  .sea-widget .sea-time{font-size:10.5px;color:rgba(255,255,255,0.8);margin-top:2px;}
 
   .connbar{margin:16px 20px 0;padding:10px 16px;border-radius:10px;background:var(--sand);border:1.5px solid var(--sand-deep);display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
   .connbar .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;background:var(--c-unbuilt);}
@@ -157,6 +163,14 @@
     <div class="stat"><div class="val" id="statTotal">—</div><div class="lbl">Total units</div></div>
     <div class="stat"><div class="val" id="statDelivered" style="color:var(--c-delivered)">—</div><div class="lbl">Delivered</div></div>
     <div class="stat"><div class="val" id="statPct" style="color:var(--teal)">—</div><div class="lbl">Complete</div></div>
+    <div class="sea-widget open" id="seaWidget" title="Click to toggle sea status">
+      <svg class="sea-icon" width="30" height="18" viewBox="0 0 30 18" fill="none">
+        <path d="M1 6c2 0 2-3 5-3s3 3 5 3 2-3 5-3 3 3 5 3 2-3 5-3 3 3 5 3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M1 12c2 0 2-3 5-3s3 3 5 3 2-3 5-3 3 3 5 3 2-3 5-3 3 3 5 3" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+      </svg>
+      <div class="sea-label" id="seaLabel">Sea: Open</div>
+      <div class="sea-time" id="seaTime">—</div>
+    </div>
   </div>
 </header>
 
@@ -347,6 +361,8 @@ DEFAULT_UNITS.forEach(u => { unitState[u[0]] = {
 
 let pins = {}; // {id: {x,y,name,text,icon}}
 let config = { showOwnerData:true, showRentOption:true, showActivityOption:true, enablePinsFeature:true };
+let seaStatus = 'Open';
+let seaStatusUpdated = '';
 
 let selectedPhase = 'ALL';
 let zoom = 0.5;
@@ -552,16 +568,21 @@ async function loadFromSheet(){
     }
     if(cfgRange && cfgRange.values && cfgRange.values.length > 1){
       const vals = cfgRange.values;
-      const map = {};
+      const rawMap = {};
       for(let i=1;i<vals.length;i++){
         const key = String(vals[i][0]||'').trim().toLowerCase();
-        const val = parseBool(vals[i][1]);
-        map[key] = val;
+        rawMap[key] = vals[i][1] !== undefined ? String(vals[i][1]) : '';
       }
-      config.showOwnerData = map['show owner data'] !== undefined ? map['show owner data'] : true;
-      config.showRentOption = map['show rent option'] !== undefined ? map['show rent option'] : true;
-      config.showActivityOption = map['show activity option'] !== undefined ? map['show activity option'] : true;
-      config.enablePinsFeature = map['enable pins feature'] !== undefined ? map['enable pins feature'] : true;
+      config.showOwnerData = rawMap['show owner data'] !== undefined ? parseBool(rawMap['show owner data']) : true;
+      config.showRentOption = rawMap['show rent option'] !== undefined ? parseBool(rawMap['show rent option']) : true;
+      config.showActivityOption = rawMap['show activity option'] !== undefined ? parseBool(rawMap['show activity option']) : true;
+      config.enablePinsFeature = rawMap['enable pins feature'] !== undefined ? parseBool(rawMap['enable pins feature']) : true;
+      if(rawMap['sea status'] !== undefined && rawMap['sea status'].trim() !== ''){
+        seaStatus = rawMap['sea status'].trim().toLowerCase() === 'closed' ? 'Closed' : 'Open';
+      }
+      if(rawMap['sea status updated'] !== undefined){
+        seaStatusUpdated = rawMap['sea status updated'];
+      }
     }
     if(pinsRange && pinsRange.values && pinsRange.values.length > 1){
       const vals = pinsRange.values;
@@ -591,6 +612,7 @@ async function loadFromSheet(){
     }
 
     applyConfigVisibility();
+    renderSeaWidget();
     refreshPhaseOptions();
     rebuildPinMarkers();
     setConn('ok', `Connected — last updated ${new Date().toLocaleTimeString()}`);
@@ -615,6 +637,26 @@ function applyConfigVisibility(){
   el('rentCheckWrap').classList.toggle('hidden', !config.showRentOption);
   el('pinsPanel').classList.toggle('hidden', !config.enablePinsFeature);
   el('btnDeleteAllPins').classList.toggle('hidden', !config.enablePinsFeature);
+}
+
+function renderSeaWidget(){
+  const widget = el('seaWidget');
+  const isOpen = seaStatus === 'Open';
+  widget.classList.toggle('open', isOpen);
+  el('seaLabel').textContent = 'Sea: ' + seaStatus;
+  if(seaStatusUpdated){
+    const d = new Date(seaStatusUpdated);
+    el('seaTime').textContent = isNaN(d.getTime()) ? seaStatusUpdated : d.toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+  } else {
+    el('seaTime').textContent = '—';
+  }
+}
+
+async function toggleSeaStatus(){
+  seaStatus = seaStatus === 'Open' ? 'Closed' : 'Open';
+  seaStatusUpdated = new Date().toISOString();
+  renderSeaWidget();
+  await postWrite({ action:'updateConfig', updates: { 'Sea Status': seaStatus, 'Sea Status Updated': seaStatusUpdated } });
 }
 
 // ---------- write helpers ----------
@@ -1242,6 +1284,7 @@ function init(){
   buildMarkers();
   refreshPhaseOptions();
   applyConfigVisibility();
+  renderSeaWidget();
   render();
 
   const editingEnabled = (typeof CC_ENABLE_POSITION_EDITING !== 'undefined') && CC_ENABLE_POSITION_EDITING === true;
@@ -1250,6 +1293,7 @@ function init(){
   }
 
   el('btnRefresh').addEventListener('click', loadFromSheet);
+  el('seaWidget').addEventListener('click', toggleSeaStatus);
   el('editToggle').addEventListener('change', e=>{
     editMode = e.target.checked;
     el('mapcontent').classList.toggle('edit-mode', editMode);
