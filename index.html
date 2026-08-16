@@ -104,21 +104,23 @@
   }
   #splashScreen.fade-out{opacity:0;pointer-events:none;}
   .splash-title{position:absolute;top:20%;left:50%;transform:translateX(-50%);font-size:30px;color:var(--teal);font-weight:700;opacity:0;animation:splash-fade-in 0.6s ease 0.2s forwards;}
-  .splash-duck-wrap{position:absolute;left:50%;top:50%;margin-left:-27px;margin-top:-58px;animation:duck-jump 3.6s ease-in-out forwards;}
+  .splash-duck-wrap{position:absolute;left:50%;top:50%;margin-left:-27px;margin-top:-58px;animation:duck-jump 4.4s ease-in-out forwards;}
   .splash-duck-img{position:absolute;left:50%;top:0;transform:translateX(-50%);width:54px;height:auto;display:block;}
-  .splash-ripple{position:absolute;left:50%;top:58%;width:10px;height:10px;margin-left:-5px;margin-top:-5px;border-radius:50%;border:3px solid rgba(255,255,255,0.85);opacity:0;animation:splash-ripple 0.9s ease-out 2.35s forwards;}
-  .splash-ripple2{position:absolute;left:50%;top:58%;width:10px;height:10px;margin-left:-5px;margin-top:-5px;border-radius:50%;border:3px solid rgba(255,255,255,0.6);opacity:0;animation:splash-ripple 1.1s ease-out 2.5s forwards;}
+  .splash-ripple{position:absolute;left:50%;top:58%;width:10px;height:10px;margin-left:-5px;margin-top:-5px;border-radius:50%;border:3px solid rgba(255,255,255,0.85);opacity:0;animation:splash-ripple 0.9s ease-out 3.55s forwards;}
+  .splash-ripple2{position:absolute;left:50%;top:58%;width:10px;height:10px;margin-left:-5px;margin-top:-5px;border-radius:50%;border:3px solid rgba(255,255,255,0.6);opacity:0;animation:splash-ripple 1.1s ease-out 3.7s forwards;}
   @keyframes duck-jump{
-    0%{transform:translateY(-110px) rotate(-15deg);}
-    12%{transform:translateY(0px) rotate(0deg);}
-    20%{transform:translateY(-48px) rotate(-8deg);}
-    30%{transform:translateY(0px) rotate(0deg);}
-    38%{transform:translateY(-36px) rotate(-6deg);}
-    47%{transform:translateY(0px) rotate(0deg);}
-    54%{transform:translateY(-24px) rotate(-4deg);}
-    63%{transform:translateY(2px) rotate(4deg);opacity:1;}
-    78%{transform:translateY(46px) rotate(12deg);opacity:0.6;}
-    100%{transform:translateY(80px) rotate(16deg);opacity:0;}
+    0%{transform:translate(190px,-90px) rotate(-10deg);}
+    9%{transform:translate(168px,0px) rotate(0deg);}
+    18%{transform:translate(132px,-40px) rotate(-7deg);}
+    27%{transform:translate(98px,0px) rotate(0deg);}
+    36%{transform:translate(65px,-34px) rotate(-6deg);}
+    45%{transform:translate(34px,0px) rotate(0deg);}
+    53%{transform:translate(10px,-24px) rotate(-4deg);}
+    60%{transform:translate(0px,0px) rotate(0deg);}
+    72%{transform:translate(0px,-75px) rotate(-10deg);}
+    85%{transform:translate(0px,8px) rotate(8deg);opacity:1;}
+    94%{transform:translate(0px,55px) rotate(14deg);opacity:0.5;}
+    100%{transform:translate(0px,85px) rotate(18deg);opacity:0;}
   }
   @keyframes splash-ripple{
     0%{width:10px;height:10px;margin-left:-5px;margin-top:-5px;opacity:0.9;}
@@ -314,7 +316,10 @@
   </div>
 </div>
 
-<footer>Phase, Status, Delivery Date, Owner/Activity/Rent, and Notes are read live from the Units sheet and sync back automatically when you change them. Refreshes every 5 minutes.</footer>
+<footer>
+  Phase, Status, Delivery Date, Owner/Activity/Rent, and Notes are read live from the Units sheet and sync back automatically when you change them. Refreshes every 5 minutes.
+  <div style="margin-top:10px;color:#8B93A0;">Created by Ahmed Khalil &middot; Email: ahmedkhalilphotos@gmail.com</div>
+</footer>
 
 <script src="config.js"></script>
 <script>
@@ -1223,7 +1228,7 @@ function init(){
       splash.classList.add('fade-out');
       setTimeout(()=>splash.remove(), 700);
     }
-  }, 3900);
+  }, 4700);
 
   if(typeof CC_SHEET_ID === 'undefined' || typeof CC_API_KEY === 'undefined' ||
      !CC_SHEET_ID || !CC_API_KEY ||
